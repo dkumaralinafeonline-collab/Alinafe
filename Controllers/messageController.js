@@ -2,7 +2,7 @@
 import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
 import User from "../models/User.js";
-import { isUserOnline, getTypingStatus } from "../services/presenceService.js";
+import { isUserOnline, getTypingStatus } from "../Services/presenceService.js";
 
 /* ========================================
    Utility Helpers
