@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import http from "http";
 import { Server } from "socket.io";
 import { v2 as cloudinary } from "cloudinary";
+import mongoose from "mongoose";
 
 import connectDB from "./config/db.js";
 
@@ -47,19 +48,16 @@ const allowedOrigins = [
   "https://yourdomain.com",
 ];
 
+// 🧩 Core Middlewares — must come before routes
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true }));
+
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: allowedOrigins,
     credentials: true,
   })
 );
-
 
 // 📸 Cloudinary Setup (ensure env variables are set)
 cloudinary.config({
@@ -79,11 +77,13 @@ if (!fs.existsSync(uploadsPath)) {
 }
 app.use("/uploads", express.static(uploadsPath));
 
-// 🔍 Debug Middleware
-app.use((req, res, next) => {
-  console.log(`➡️ ${req.method} ${req.originalUrl}`);
-  next();
-});
+// 🔍 Debug Middleware (only for development)
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log(`➡️ ${req.method} ${req.originalUrl}`);
+    next();
+  });
+}
 
 // ✅ API Routes
 app.use("/api/ads", adRoutes);
@@ -111,10 +111,7 @@ app.use((err, req, res, next) => {
 ================================ */
 const io = new Server(server, {
   cors: {
-    origin:
-      process.env.NODE_ENV === "production"
-        ? ["https://zitheke.netlify.app", "https://yourdomain.com"]
-        : "http://localhost:5173",
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
   },
 });
@@ -244,3 +241,10 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`✅ Zitheke Backend & Chat Server running on port ${PORT}`)
 );
+
+// 🧹 Graceful shutdown (optional but clean)
+process.on("SIGINT", async () => {
+  console.log("🔴 Shutting down gracefully...");
+  await mongoose.connection.close();
+  process.exit(0);
+});
