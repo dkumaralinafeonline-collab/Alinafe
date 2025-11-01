@@ -41,16 +41,25 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
-// ⚙️ Middleware
-app.use(express.json());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://zitheke.netlify.app",
+  "https://yourdomain.com",
+];
+
 app.use(
   cors({
-    origin: process.env.NODE_ENV === "production"
-      ? ["https://zitheke.netlify.app", "https://yourdomain.com"] // ✅ your production frontend
-      : "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
+
 
 // 📸 Cloudinary Setup (ensure env variables are set)
 cloudinary.config({
