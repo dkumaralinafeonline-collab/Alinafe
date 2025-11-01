@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Ad from "../models/Ad.js";
 import User from "../models/User.js";
 import { v2 as cloudinary } from "cloudinary";
