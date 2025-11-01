@@ -202,42 +202,51 @@ export const markAsSold = async (req, res) => {
   }
 };
 
-/* ================================
-   👁️ INCREMENT VIEW COUNT
-================================ */
+/* ========================================
+   👁️ INCREMENT AD VIEW COUNT
+======================================== */
 export const incrementView = async (req, res) => {
   try {
-    const { userId, guestId } = req.body; // guestId for non-logged-in users
-    const uniqueViewer = userId || guestId; // pick whichever exists
-    const ad = await Ad.findById(req.params.id);
+    const { userId, guestId } = req.body;
+    const uniqueViewer = userId || guestId;
+    const { id } = req.params;
 
+    // 🧠 Validate Ad ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid Ad ID" });
+    }
+
+    const ad = await Ad.findById(id);
     if (!ad) return res.status(404).json({ message: "Ad not found" });
 
-    // 🧠 Don’t count owner’s views
+    // 🧩 Prevent owner's self-view increment
     if (userId && ad.ownerUid === userId) {
       return res.json({ message: "Owner viewed — no increment" });
     }
 
-    // 🧩 If viewer already exists → skip increment
+    // 🧠 Prevent duplicate increments
     if (uniqueViewer && ad.viewedBy.includes(uniqueViewer)) {
-      return res.json({ message: "Already viewed by this user", views: ad.views });
+      return res.json({
+        message: "Already viewed by this user",
+        views: ad.views,
+      });
     }
 
-    // ✅ Increment once
+    // ✅ Increment once per unique viewer
     ad.views = (ad.views || 0) + 1;
-
-    // Save user’s ID (or guest token)
     if (uniqueViewer) ad.viewedBy.push(uniqueViewer);
 
     await ad.save();
 
     res.json({ message: "View incremented", views: ad.views });
   } catch (error) {
-    console.error("Error updating view count:", error);
-    res.status(500).json({ message: "Server error", error });
+    console.error("❌ Error updating view count:", error);
+    res.status(500).json({
+      message: "Server error while updating view count",
+      error: error.message,
+    });
   }
 };
-
 /* ================================
    ⚙️ CHANGE AD STATUS
 ================================ */
