@@ -100,17 +100,19 @@ const adSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Active", "Sold", "Expired", "Hidden"],
-      default: "Active",
+      enum: ["Pending", "Approved", "Rejected", "Sold", "Deleted", "Active"],
+      default: "Pending",
     },
     featured: { type: Boolean, default: false },
     expiryDate: { type: Date },
-
+    
     /* ===========================
        🚨 Moderation
     =========================== */
     reported: { type: Boolean, default: false },
     reportReason: { type: String, default: "" },
+    rejectionReason: { type: String, default: "" }, // ✅ add this
+    
   },
   { timestamps: true }
 );

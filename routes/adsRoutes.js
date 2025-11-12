@@ -34,34 +34,34 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: "zitheke_uploads", // folder name in your Cloudinary
+    folder: "zitheke_uploads", // folder name in Cloudinary
     allowed_formats: ["jpg", "jpeg", "png", "webp", "avif"],
-    transformation: [{ quality: "auto", fetch_format: "auto" }], // optimize image
+    transformation: [{ quality: "auto", fetch_format: "auto" }],
   },
 });
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max per image
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per image
 });
 
 /* =============================
         🔹 ROUTES START
 ============================= */
 
-// 🟢 CREATE New Ad (with up to 5 images)
+// 🟢 CREATE New Ad (default Pending status, up to 5 images)
 router.post("/create", upload.array("images", 5), createAd);
 
 // 👤 Get Ads created by specific user
 router.get("/user/:uid", getUserAds);
 
-// 🟣 Get ALL Ads (supports ?category=... filter)
+// 🟣 Get ALL Ads (optionally filtered by category)
 router.get("/", getAllAds);
 
 // 🔍 Get Single Ad by ID
 router.get("/:id", getAdById);
 
-// 🔎 SEARCH Ads (query + location)
+// 🔎 Search Ads (query + location)
 router.get("/search/ads", searchAds);
 
 // 👁️ Increment View Count
@@ -73,10 +73,10 @@ router.put("/:id/favorite", updateFavoriteCount);
 // 💰 Mark Ad as SOLD
 router.put("/:id/sold", markAsSold);
 
-// ✏️ UPDATE Ad Details
+// ✏️ Update Ad Details
 router.put("/:id", updateAd);
 
-// ❌ DELETE Ad
+// ❌ Delete Ad
 router.delete("/:id", deleteAd);
 
 /* =============================

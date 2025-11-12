@@ -13,7 +13,16 @@ cloudinary.config({
 });
 
 /* ================================
-   🟢 CREATE AD
+// Controllers/adController.js
+import Ad from "../models/Ad.js";
+import User from "../models/User.js";
+
+// Controllers/adController.js
+import Ad from "../models/Ad.js";
+import User from "../models/User.js";
+
+/* ================================
+   🟢 CREATE AD (Pending by default)
 ================================ */
 export const createAd = async (req, res) => {
   try {
@@ -48,11 +57,12 @@ export const createAd = async (req, res) => {
       accessType,
     } = req.body;
 
+    // ✅ Required fields check
     if (!ownerUid || !title || !description || !category) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // ✅ Fetch owner details if missing
+    // ✅ Fetch owner details if not passed
     let finalName = ownerName;
     let finalEmail = ownerEmail;
     let finalPhone = ownerPhone;
@@ -66,11 +76,10 @@ export const createAd = async (req, res) => {
       }
     }
 
-    // ✅ Use Cloudinary URLs (auto from multer-storage-cloudinary)
-    const imagePaths = req.files
-      ? req.files.map((f) => f.path || f.secure_url)
-      : [];
+    // ✅ Handle Cloudinary uploads
+    const imagePaths = req.files ? req.files.map((f) => f.path || f.secure_url) : [];
 
+    // ✅ Create ad in "Pending" state
     const newAd = await Ad.create({
       ownerUid,
       ownerName: finalName || "Unknown Seller",
@@ -101,17 +110,25 @@ export const createAd = async (req, res) => {
       ageGroup,
       fileType,
       accessType,
+      status: "Pending", // 🟡 user ads will not go live until admin approves
+      reportReason: "",  // clean by default
     });
 
     res.status(201).json({
-      message: "Ad created successfully",
+      success: true,
+      message: "✅ Ad submitted successfully and is pending admin approval.",
       ad: newAd,
     });
   } catch (error) {
-    console.error("Error creating ad:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("❌ Error creating ad:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while creating ad",
+      error: error.message,
+    });
   }
 };
+
 
 /* ================================
    👤 GET USER ADS
@@ -132,18 +149,26 @@ export const getUserAds = async (req, res) => {
 ================================ */
 export const getAllAds = async (req, res) => {
   try {
-    const filters = {};
+    const filters = { status: "Approved" }; // ✅ default filter: only approved ads
+
+    // 🏷️ Optional filters
     if (req.query.category) filters.category = req.query.category;
     if (req.query.city) filters.city = req.query.city;
-    if (req.query.status) filters.status = req.query.status;
+
+    // ⚠️ Prevent external overriding of status filter
+    // so even if someone adds ?status=Pending in URL, ignore it
 
     const ads = await Ad.find(filters).sort({ createdAt: -1 });
+
     res.status(200).json(ads);
   } catch (error) {
-    console.error("Error fetching ads:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("❌ Error fetching ads:", error);
+    res
+      .status(500)
+      .json({ message: "Server error while fetching ads", error: error.message });
   }
 };
+
 
 /* ================================
    ✏️ UPDATE AD

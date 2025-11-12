@@ -19,6 +19,11 @@ import userRoutes from "./routes/userRoutes.js";
 import favoriteRoutes from "./routes/favoriteRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import conversationRoutes from "./routes/conversationRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js"; // ✅ new
+import adminMessageRoutes from "./routes/adminMessageRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js"; // ✅ <-- added here
+import adminAnalyticsRoutes from "./routes/adminAnalyticsRoutes.js";
+
 
 // ✅ Import Models
 import Message from "./models/Message.js";
@@ -44,6 +49,8 @@ const server = http.createServer(app);
 
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174",
+
   "https://zitheke.netlify.app",
   "https://yourdomain.com",
 ];
@@ -59,12 +66,7 @@ app.use(
   })
 );
 
-// 📸 Cloudinary Setup (ensure env variables are set)
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+
 
 // 🖼️ Static Uploads (kept for backward compatibility)
 const __filename = fileURLToPath(import.meta.url);
@@ -91,6 +93,14 @@ app.use("/api/users", userRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/conversations", conversationRoutes);
+app.use("/api/admin", adminRoutes); // ✅ add this line
+app.use("/api/admin", adminMessageRoutes);
+app.use("/api/reports", reportRoutes); // ✅ <-- main reports route
+app.use("/api/admin", adminAnalyticsRoutes);
+
+
+
+
 
 // 🏠 Default Route
 app.get("/", (req, res) => {
