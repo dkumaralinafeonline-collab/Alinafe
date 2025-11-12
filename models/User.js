@@ -1,3 +1,4 @@
+// models/User.js
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
@@ -13,10 +14,17 @@ const userSchema = new mongoose.Schema(
     location: { type: String, default: "" },
 
     // --- Account Status ---
-    status: { type: String, enum: ["Active", "Suspended"], default: "Active" },
+    status: {
+      type: String,
+      enum: ["Active", "Suspended"],
+      default: "Active",
+    },
+    verified: { type: Boolean, default: false },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    adsPosted: { type: Number, default: 0 },
     lastLogin: { type: Date, default: Date.now },
 
-    // --- 🧡 Favorites List (Added for Wishlist System) ---
+    // --- 🧡 Favorites List (Wishlist System) ---
     favorites: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -27,6 +35,5 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Export model
 const User = mongoose.model("User", userSchema);
 export default User;
