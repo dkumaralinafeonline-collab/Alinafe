@@ -50,6 +50,7 @@ const server = http.createServer(app);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
+  "https://zitheke.onrender.com",   // agar yahi se admin call aayega
 
   "https://zitheke.netlify.app",
   "https://yourdomain.com",
