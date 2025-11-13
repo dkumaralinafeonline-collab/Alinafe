@@ -11,17 +11,9 @@ import {
   rejectAd,
   deleteAdByAdmin,
   getAdsStats,
-  getAdminStats,           // 🆕 added
-  getAdminConversations,   // 🆕 added
 } from "../Controllers/adminController.js";
 
 const router = express.Router();
-
-/* ============================
-   📊 DASHBOARD ANALYTICS
-============================ */
-router.get("/stats", getAdminStats); // ✅ overview dashboard API
-router.get("/conversations", getAdminConversations); // ✅ messages section API
 
 /* ============================
    👤 USER MANAGEMENT

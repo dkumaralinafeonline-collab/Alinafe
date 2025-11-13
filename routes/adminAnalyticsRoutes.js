@@ -1,10 +1,9 @@
-// 📁 backend/routes/adminAnalyticsRoutes.js
 import express from "express";
 import { getAdminStats } from "../controllers/adminAnalyticsController.js";
 
 const router = express.Router();
 
-// ✅ Admin analytics overview endpoint
-router.get("/stats", getAdminStats);
+// ✅ Unified Admin Overview Route (with Category Insights)
+router.get("/overview", getAdminStats);
 
 export default router;
