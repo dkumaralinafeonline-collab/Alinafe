@@ -2,7 +2,7 @@ import express from "express";
 import {
   getAllConversations,
   getMessagesForAdmin,
-} from "../controllers/adminMessageController.js";
+} from "../Controllers/adminMessageController.js";
 
 const router = express.Router();
 
