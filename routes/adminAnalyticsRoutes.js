@@ -1,5 +1,5 @@
 import express from "express";
-import { getAdminStats } from "../controllers/adminAnalyticsController.js";
+import { getAdminStats } from "../Controllers/adminAnalyticsController.js";
 
 const router = express.Router();
 
