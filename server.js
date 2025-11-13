@@ -20,9 +20,12 @@ import favoriteRoutes from "./routes/favoriteRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import conversationRoutes from "./routes/conversationRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js"; // ✅ new
+<<<<<<< HEAD
 import adminMessageRoutes from "./routes/adminMessageRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js"; // ✅ <-- added here
 import adminAnalyticsRoutes from "./routes/adminAnalyticsRoutes.js";
+=======
+>>>>>>> cac9e708ceea658f746d2cd17b49d023e49788f9
 
 
 // ✅ Import Models
@@ -50,8 +53,12 @@ const server = http.createServer(app);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
+<<<<<<< HEAD
   "http://localhost:5000",   // agar yahi se admin call aayega
 
+=======
+  "https://alinafe.netlify.app",
+>>>>>>> cac9e708ceea658f746d2cd17b49d023e49788f9
   "https://zitheke.netlify.app",
   "https://yourdomain.com",
 ];
@@ -60,14 +67,37 @@ const allowedOrigins = [
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// ✅ CORS — Fix for Netlify & Render
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", allowedOrigins.includes(req.headers.origin) ? req.headers.origin : "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> cac9e708ceea658f746d2cd17b49d023e49788f9
 
 // 🖼️ Static Uploads (kept for backward compatibility)
 const __filename = fileURLToPath(import.meta.url);
@@ -95,12 +125,15 @@ app.use("/api/favorites", favoriteRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/conversations", conversationRoutes);
 app.use("/api/admin", adminRoutes); // ✅ add this line
+<<<<<<< HEAD
 app.use("/api/admin", adminMessageRoutes);
 app.use("/api/reports", reportRoutes); // ✅ <-- main reports route
 app.use("/api/admin", adminAnalyticsRoutes);
 
 
 
+=======
+>>>>>>> cac9e708ceea658f746d2cd17b49d023e49788f9
 
 
 // 🏠 Default Route
