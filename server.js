@@ -19,14 +19,10 @@ import userRoutes from "./routes/userRoutes.js";
 import favoriteRoutes from "./routes/favoriteRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import conversationRoutes from "./routes/conversationRoutes.js";
-import adminRoutes from "./routes/adminRoutes.js"; // ✅ new
-<<<<<<< HEAD
+import adminRoutes from "./routes/adminRoutes.js";
 import adminMessageRoutes from "./routes/adminMessageRoutes.js";
-import reportRoutes from "./routes/reportRoutes.js"; // ✅ <-- added here
+import reportRoutes from "./routes/reportRoutes.js";
 import adminAnalyticsRoutes from "./routes/adminAnalyticsRoutes.js";
-=======
->>>>>>> cac9e708ceea658f746d2cd17b49d023e49788f9
-
 
 // ✅ Import Models
 import Message from "./models/Message.js";
@@ -53,12 +49,8 @@ const server = http.createServer(app);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-<<<<<<< HEAD
-  "http://localhost:5000",   // agar yahi se admin call aayega
-
-=======
+  "http://localhost:5000",
   "https://alinafe.netlify.app",
->>>>>>> cac9e708ceea658f746d2cd17b49d023e49788f9
   "https://zitheke.netlify.app",
   "https://yourdomain.com",
 ];
@@ -69,10 +61,22 @@ app.use(express.urlencoded({ extended: true }));
 
 // ✅ CORS — Fix for Netlify & Render
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", allowedOrigins.includes(req.headers.origin) ? req.headers.origin : "*");
+  res.header(
+    "Access-Control-Allow-Origin",
+    allowedOrigins.includes(req.headers.origin)
+      ? req.headers.origin
+      : "*"
+  );
   res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
@@ -93,13 +97,7 @@ app.use(
   })
 );
 
-
-<<<<<<< HEAD
-=======
-
->>>>>>> cac9e708ceea658f746d2cd17b49d023e49788f9
-
-// 🖼️ Static Uploads (kept for backward compatibility)
+// 🖼️ Static Uploads
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -124,17 +122,12 @@ app.use("/api/users", userRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/conversations", conversationRoutes);
-app.use("/api/admin", adminRoutes); // ✅ add this line
-<<<<<<< HEAD
+
+app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminMessageRoutes);
-app.use("/api/reports", reportRoutes); // ✅ <-- main reports route
 app.use("/api/admin", adminAnalyticsRoutes);
 
-
-
-=======
->>>>>>> cac9e708ceea658f746d2cd17b49d023e49788f9
-
+app.use("/api/reports", reportRoutes);
 
 // 🏠 Default Route
 app.get("/", (req, res) => {
@@ -201,7 +194,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // 🔹 Send message (ack + db save)
+  // 🔹 Send message
   socket.on("message:send", async (msg, cb) => {
     try {
       if (msg.senderId !== userId)
@@ -286,7 +279,7 @@ server.listen(PORT, () =>
   console.log(`✅ Zitheke Backend & Chat Server running on port ${PORT}`)
 );
 
-// 🧹 Graceful shutdown (optional but clean)
+// 🧹 Graceful shutdown
 process.on("SIGINT", async () => {
   console.log("🔴 Shutting down gracefully...");
   await mongoose.connection.close();
