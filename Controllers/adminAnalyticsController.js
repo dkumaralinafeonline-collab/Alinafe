@@ -42,13 +42,18 @@ export const getAdminStats = async (req, res) => {
 
     const [usersThisMonth, usersLastMonth] = await Promise.all([
       User.countDocuments({ createdAt: { $gte: firstOfThisMonth } }),
-      User.countDocuments({ createdAt: { $gte: firstOfLastMonth, $lt: firstOfThisMonth } }),
+      User.countDocuments({
+        createdAt: { $gte: firstOfLastMonth, $lt: firstOfThisMonth },
+      }),
     ]);
 
     const userGrowthRate =
       usersLastMonth === 0
         ? 100
-        : (((usersThisMonth - usersLastMonth) / usersLastMonth) * 100).toFixed(2);
+        : (
+            ((usersThisMonth - usersLastMonth) / usersLastMonth) *
+            100
+          ).toFixed(2);
 
     // ⚡ 3. Monthly Trends (6 months)
     const months = Array.from({ length: 6 }, (_, i) => {
@@ -64,7 +69,9 @@ export const getAdminStats = async (req, res) => {
         start.setHours(0, 0, 0, 0);
         const end = new Date(start);
         end.setMonth(start.getMonth() + 1);
-        return Ad.countDocuments({ createdAt: { $gte: start, $lt: end } });
+        return Ad.countDocuments({
+          createdAt: { $gte: start, $lt: end },
+        });
       })
     );
 
@@ -75,7 +82,9 @@ export const getAdminStats = async (req, res) => {
         start.setHours(0, 0, 0, 0);
         const end = new Date(start);
         end.setMonth(start.getMonth() + 1);
-        return User.countDocuments({ createdAt: { $gte: start, $lt: end } });
+        return User.countDocuments({
+          createdAt: { $gte: start, $lt: end },
+        });
       })
     );
 
@@ -88,134 +97,138 @@ export const getAdminStats = async (req, res) => {
     };
 
     // ⚡ 5. Top Insights
-    const [topCategoryAgg, topLocationAgg, mostReportedCategoryAgg] = await Promise.all([
-      // TOP CATEGORY
-      Ad.aggregate([
-        { $match: { category: { $exists: true, $nin: [null, ""] } } },
-        { $group: { _id: "$category", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 1 },
-      ]),
+    const [topCategoryAgg, topLocationAgg, mostReportedCategoryAgg] =
+      await Promise.all([
+        // TOP CATEGORY
+        Ad.aggregate([
+          { $match: { category: { $exists: true, $nin: [null, ""] } } },
+          { $group: { _id: "$category", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 1 },
+        ]),
 
-      // TOP LOCATION (SAFE)
-      Ad.aggregate([
-        { $match: { location: { $exists: true, $nin: [null, ""] } } },
-        {
-          $group: {
-            _id: {
-              $toLower: {
-                $cond: [
-                  { $isNumber: "$location" },
-                  "",
-                  "$location",
-                ],
+        // TOP LOCATION (SAFE)
+        Ad.aggregate([
+          { $match: { location: { $exists: true, $nin: [null, ""] } } },
+          {
+            $group: {
+              _id: {
+                $toLower: {
+                  $cond: [
+                    { $isNumber: "$location" },
+                    "",
+                    "$location",
+                  ],
+                },
               },
+              count: { $sum: 1 },
             },
-            count: { $sum: 1 },
           },
-        },
-        { $sort: { count: -1 } },
-        { $limit: 1 },
-      ]),
+          { $sort: { count: -1 } },
+          { $limit: 1 },
+        ]),
 
-      // MOST REPORTED CATEGORY (SAFE UNWIND)
-      Report.aggregate([
-        {
-          $lookup: {
-            from: "ads",
-            localField: "adId",
-            foreignField: "_id",
-            as: "ad",
+        // MOST REPORTED CATEGORY
+        Report.aggregate([
+          {
+            $lookup: {
+              from: "ads",
+              localField: "adId",
+              foreignField: "_id",
+              as: "ad",
+            },
           },
-        },
-        {
-          $unwind: {
-            path: "$ad",
-            preserveNullAndEmptyArrays: true,
+          {
+            $unwind: {
+              path: "$ad",
+              preserveNullAndEmptyArrays: true,
+            },
           },
-        },
-        {
-          $group: {
-            _id: "$ad.category",
-            reports: { $sum: 1 },
+          {
+            $group: {
+              _id: "$ad.category",
+              reports: { $sum: 1 },
+            },
           },
-        },
-        { $sort: { reports: -1 } },
-        { $limit: 1 },
-      ]),
-    ]);
+          { $sort: { reports: -1 } },
+          { $limit: 1 },
+        ]),
+      ]);
 
     const topCategory = topCategoryAgg[0]?._id || "—";
-    const topLocation = topLocationAgg[0]?._id || "—";
+    const topLocation =
+      topLocationAgg[0]?._id?.charAt(0).toUpperCase() +
+        topLocationAgg[0]?._id?.slice(1) || "—";
+
     const mostReportedCategory = mostReportedCategoryAgg[0]?._id || "—";
 
-    // ⚡ 6. Category Insights (SAFE VERSION)
-    const [categorySummary, reportedCategories, engagementByCategory] = await Promise.all([
-      Ad.aggregate([
-        {
-          $group: {
-            _id: "$category",
-            totalAds: { $sum: 1 },
-            avgPrice: { $avg: "$price" },
+    // ⚡ 6. Category Insights
+    const [categorySummary, reportedCategories, engagementByCategory] =
+      await Promise.all([
+        // TOTAL ADS PER CATEGORY
+        Ad.aggregate([
+          {
+            $group: {
+              _id: "$category",
+              totalAds: { $sum: 1 },
+              avgPrice: { $avg: "$price" },
+            },
           },
-        },
-        { $sort: { totalAds: -1 } },
-        { $limit: 8 },
-      ]),
+          { $sort: { totalAds: -1 } },
+          { $limit: 8 },
+        ]),
 
-      Report.aggregate([
-        {
-          $lookup: {
-            from: "ads",
-            localField: "adId",
-            foreignField: "_id",
-            as: "ad",
+        // TOTAL REPORTS PER CATEGORY
+        Report.aggregate([
+          {
+            $lookup: {
+              from: "ads",
+              localField: "adId",
+              foreignField: "_id",
+              as: "ad",
+            },
           },
-        },
-        {
-          $unwind: {
-            path: "$ad",
-            preserveNullAndEmptyArrays: true,
+          {
+            $unwind: {
+              path: "$ad",
+              preserveNullAndEmptyArrays: true,
+            },
           },
-        },
-        {
-          $group: {
-            _id: "$ad.category",
-            totalReports: { $sum: 1 },
+          {
+            $group: {
+              _id: "$ad.category",
+              totalReports: { $sum: 1 },
+            },
           },
-        },
-        { $sort: { totalReports: -1 } },
-      ]),
+          { $sort: { totalReports: -1 } },
+        ]),
 
-      Message.aggregate([
-        {
-          $match: {
-            adId: { $exists: true },
+        // TOTAL MESSAGES PER CATEGORY
+        Message.aggregate([
+          { $match: { adId: { $exists: true } } },
+          {
+            $lookup: {
+              from: "ads",
+              localField: "adId",
+              foreignField: "_id",
+              as: "ad",
+            },
           },
-        },
-        {
-          $lookup: {
-            from: "ads",
-            localField: "adId",
-            foreignField: "_id",
-            as: "ad",
+          {
+            $unwind: {
+              path: "$ad",
+              preserveNullAndEmptyArrays: true,
+            },
           },
-        },
-        {
-          $unwind: {
-            path: "$ad",
-            preserveNullAndEmptyArrays: true,
+          {
+            $group: {
+              _id: "$ad.category",
+              totalMessages: { $sum: 1 },
+            },
           },
-        },
-        {
-          $group: {
-            _id: "$ad.category",
-            totalMessages: { $sum: 1 },
-          },
-        },
-        { $sort: { totalMessages: -1 } },
-      ]),
-    ]);
+          { $sort: { totalMessages: -1 } },
+        ]),
+      ]);
 
     const categoryInsights = categorySummary.map((cat) => {
       const reports = reportedCategories.find((r) => r._id === cat._id);
@@ -234,18 +247,14 @@ export const getAdminStats = async (req, res) => {
       };
     });
 
-    // ⚡ 7. User Cities (SAFE)
+    // ⚡ 7. User Cities
     const userCities = await User.aggregate([
       { $match: { location: { $exists: true, $nin: [null, ""] } } },
       {
         $group: {
           _id: {
             $toLower: {
-              $cond: [
-                { $isNumber: "$location" },
-                "",
-                "$location",
-              ],
+              $cond: [{ $isNumber: "$location" }, "", "$location"],
             },
           },
           count: { $sum: 1 },
@@ -257,6 +266,10 @@ export const getAdminStats = async (req, res) => {
 
     const activeUsers = Math.round(totalUsers * 0.75);
     const inactiveUsers = totalUsers - activeUsers;
+
+    // ⚡ 8. Engagement Rate (GLOBAL)
+    const engagementRate =
+      totalUsers > 0 ? (totalMessages / totalUsers).toFixed(1) : "0";
 
     // ⚡ FINAL DATA
     const overview = {

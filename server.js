@@ -53,6 +53,8 @@ const allowedOrigins = [
   "https://alinafe.netlify.app",
   "https://zitheke.netlify.app",
   "https://yourdomain.com",
+  "https://zitheke-admin.netlify.app",
+
 ];
 
 // 🧩 Core Middlewares — must come before routes
