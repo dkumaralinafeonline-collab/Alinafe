@@ -4,18 +4,17 @@ import Ad from "../models/Ad.js";
 import Report from "../models/Report.js";
 import Message from "../models/Message.js";
 
-// 🧠 Cache results for 5 minutes to improve performance
 const cache = new NodeCache({ stdTTL: 300, checkperiod: 320 });
 
 export const getAdminStats = async (req, res) => {
   try {
-    // 🔁 Check cache first
-    const cachedData = cache.get("admin_overview");
-    if (cachedData) {
-      return res.status(200).json({ success: true, source: "cache", ...cachedData });
+    // ⚡ Check Cache
+    const cached = cache.get("admin_overview");
+    if (cached) {
+      return res.status(200).json({ success: true, source: "cache", ...cached });
     }
 
-    // 🧩 1️⃣ Core Counts (Parallelized)
+    // ⚡ 1. Core Counts
     const [
       totalUsers,
       totalAds,
@@ -24,7 +23,7 @@ export const getAdminStats = async (req, res) => {
       rejectedAds,
       soldAds,
       totalReports,
-      totalMessages
+      totalMessages,
     ] = await Promise.all([
       User.countDocuments(),
       Ad.countDocuments(),
@@ -36,7 +35,7 @@ export const getAdminStats = async (req, res) => {
       Message.countDocuments(),
     ]);
 
-    // 🧠 2️⃣ User Growth — last month vs current month
+    // ⚡ 2. User Growth
     const now = new Date();
     const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -51,7 +50,7 @@ export const getAdminStats = async (req, res) => {
         ? 100
         : (((usersThisMonth - usersLastMonth) / usersLastMonth) * 100).toFixed(2);
 
-    // 🗓️ 3️⃣ Monthly Trends (last 6 months)
+    // ⚡ 3. Monthly Trends (6 months)
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date();
       d.setMonth(d.getMonth() - (5 - i));
@@ -80,8 +79,7 @@ export const getAdminStats = async (req, res) => {
       })
     );
 
-    // 🧮 4️⃣ Ad Status Distribution
-    
+    // ⚡ 4. Ad Status
     const adStatusCount = {
       Approved: approvedAds,
       Pending: pendingAds,
@@ -89,34 +87,38 @@ export const getAdminStats = async (req, res) => {
       Sold: soldAds,
     };
 
-    // 🧭 5️⃣ Top Insights (using Aggregation Pipelines)
+    // ⚡ 5. Top Insights
     const [topCategoryAgg, topLocationAgg, mostReportedCategoryAgg] = await Promise.all([
-      // 🧭 Top Category
+      // TOP CATEGORY
       Ad.aggregate([
-        { $match: { category: { $ne: null } } },
+        { $match: { category: { $exists: true, $nin: [null, ""] } } },
         { $group: { _id: "$category", count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 1 },
       ]),
-    
-      // 🗺️ Improved Top Location
+
+      // TOP LOCATION (SAFE)
       Ad.aggregate([
-        {
-          $match: {
-            location: { $exists: true, $nin: [null, ""] },
-          },
-        },
+        { $match: { location: { $exists: true, $nin: [null, ""] } } },
         {
           $group: {
-            _id: { $toLower: "$location" },
+            _id: {
+              $toLower: {
+                $cond: [
+                  { $isNumber: "$location" },
+                  "",
+                  "$location",
+                ],
+              },
+            },
             count: { $sum: 1 },
           },
         },
         { $sort: { count: -1 } },
         { $limit: 1 },
       ]),
-    
-      // ⚠️ Most Reported Category
+
+      // MOST REPORTED CATEGORY (SAFE UNWIND)
       Report.aggregate([
         {
           $lookup: {
@@ -126,24 +128,28 @@ export const getAdminStats = async (req, res) => {
             as: "ad",
           },
         },
-        { $unwind: "$ad" },
-        { $group: { _id: "$ad.category", reports: { $sum: 1 } } },
+        {
+          $unwind: {
+            path: "$ad",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $group: {
+            _id: "$ad.category",
+            reports: { $sum: 1 },
+          },
+        },
         { $sort: { reports: -1 } },
         { $limit: 1 },
       ]),
     ]);
-    
-    const topCategory = topCategoryAgg[0]?._id || "—";
-    const topLocation = topLocationAgg[0]?._id
-      ? topLocationAgg[0]._id.charAt(0).toUpperCase() + topLocationAgg[0]._id.slice(1)
-      : "—";
-    const mostReportedCategory = mostReportedCategoryAgg[0]?._id || "—";
-    
-    // ⚙️ 6️⃣ Engagement Rate (messages per user)
-    const engagementRate =
-      totalUsers > 0 ? (totalMessages / totalUsers).toFixed(1) : 0;
 
-    // 🧩 7️⃣ Category Insights (Advanced)
+    const topCategory = topCategoryAgg[0]?._id || "—";
+    const topLocation = topLocationAgg[0]?._id || "—";
+    const mostReportedCategory = mostReportedCategoryAgg[0]?._id || "—";
+
+    // ⚡ 6. Category Insights (SAFE VERSION)
     const [categorySummary, reportedCategories, engagementByCategory] = await Promise.all([
       Ad.aggregate([
         {
@@ -156,6 +162,7 @@ export const getAdminStats = async (req, res) => {
         { $sort: { totalAds: -1 } },
         { $limit: 8 },
       ]),
+
       Report.aggregate([
         {
           $lookup: {
@@ -165,11 +172,27 @@ export const getAdminStats = async (req, res) => {
             as: "ad",
           },
         },
-        { $unwind: "$ad" },
-        { $group: { _id: "$ad.category", totalReports: { $sum: 1 } } },
+        {
+          $unwind: {
+            path: "$ad",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $group: {
+            _id: "$ad.category",
+            totalReports: { $sum: 1 },
+          },
+        },
         { $sort: { totalReports: -1 } },
       ]),
+
       Message.aggregate([
+        {
+          $match: {
+            adId: { $exists: true },
+          },
+        },
         {
           $lookup: {
             from: "ads",
@@ -178,8 +201,18 @@ export const getAdminStats = async (req, res) => {
             as: "ad",
           },
         },
-        { $unwind: "$ad" },
-        { $group: { _id: "$ad.category", totalMessages: { $sum: 1 } } },
+        {
+          $unwind: {
+            path: "$ad",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $group: {
+            _id: "$ad.category",
+            totalMessages: { $sum: 1 },
+          },
+        },
         { $sort: { totalMessages: -1 } },
       ]),
     ]);
@@ -187,6 +220,7 @@ export const getAdminStats = async (req, res) => {
     const categoryInsights = categorySummary.map((cat) => {
       const reports = reportedCategories.find((r) => r._id === cat._id);
       const engage = engagementByCategory.find((e) => e._id === cat._id);
+
       return {
         category: cat._id || "—",
         totalAds: cat.totalAds || 0,
@@ -200,26 +234,32 @@ export const getAdminStats = async (req, res) => {
       };
     });
 
-    // 🧩 8️⃣ User Growth Section (Top Cities + Active/Inactive)
-  // 🗺️ Top User Cities (based on location field)
-const userCities = await User.aggregate([
-  { $match: { location: { $exists: true, $nin: [null, ""] } } },
-  {
-    $group: {
-      _id: { $toLower: "$location" },
-      count: { $sum: 1 },
-    },
-  },
-  { $sort: { count: -1 } },
-  { $limit: 6 },
-]);
+    // ⚡ 7. User Cities (SAFE)
+    const userCities = await User.aggregate([
+      { $match: { location: { $exists: true, $nin: [null, ""] } } },
+      {
+        $group: {
+          _id: {
+            $toLower: {
+              $cond: [
+                { $isNumber: "$location" },
+                "",
+                "$location",
+              ],
+            },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 6 },
+    ]);
 
-
-    const activeUsers = Math.round(totalUsers * 0.75); // temporary assumption
+    const activeUsers = Math.round(totalUsers * 0.75);
     const inactiveUsers = totalUsers - activeUsers;
 
-    // 🧾 9️⃣ Final Overview Data
-    const overviewData = {
+    // ⚡ FINAL DATA
+    const overview = {
       totalUsers,
       totalAds,
       approvedAds,
@@ -238,26 +278,20 @@ const userCities = await User.aggregate([
       mostReportedCategory,
       engagementRate,
       categoryInsights,
-      userCities, // ✅ New
-      activeUsers, // ✅ New
-      inactiveUsers, // ✅ New
+      userCities,
+      activeUsers,
+      inactiveUsers,
       lastUpdated: new Date(),
     };
 
-    // 🧠 Cache for 5 mins
-    cache.set("admin_overview", overviewData);
+    cache.set("admin_overview", overview);
 
-    // ✅ Send response
-    res.status(200).json({
-      success: true,
-      source: "database",
-      ...overviewData,
-    });
+    return res.status(200).json({ success: true, ...overview });
   } catch (err) {
-    console.error("❌ Error generating admin analytics:", err);
+    console.error("🔥 ADMIN ANALYTICS ERROR:", err);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch admin analytics",
+      error: err.message || "Failed to fetch admin analytics",
     });
   }
 };

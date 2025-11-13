@@ -49,7 +49,7 @@ const server = http.createServer(app);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-  "http://localhost:5000",
+  "https://zitheke.onrender.com",
   "https://alinafe.netlify.app",
   "https://zitheke.netlify.app",
   "https://yourdomain.com",
