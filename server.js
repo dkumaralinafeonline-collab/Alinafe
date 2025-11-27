@@ -54,25 +54,25 @@ const allowedOrigins = [
   "https://zitheke.netlify.app",
   "https://yourdomain.com",
   "https://zitheke-admin.netlify.app",
-
 ];
 
-// 🧩 Core Middlewares — must come before routes
+// 🧩 Core Middlewares
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ CORS — Fix for Netlify & Render
+// ===============================
+// 🚀 GLOBAL CORS FIX (FINAL)
+// ===============================
 app.use((req, res, next) => {
-  res.header(
-    "Access-Control-Allow-Origin",
-    allowedOrigins.includes(req.headers.origin)
-      ? req.headers.origin
-      : "*"
-  );
+  const origin = allowedOrigins.includes(req.headers.origin)
+    ? req.headers.origin
+    : "*";
+
+  res.header("Access-Control-Allow-Origin", origin);
   res.header("Access-Control-Allow-Credentials", "true");
   res.header(
     "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS"
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
   );
   res.header(
     "Access-Control-Allow-Headers",
@@ -82,9 +82,11 @@ app.use((req, res, next) => {
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
   }
+
   next();
 });
 
+// 💯 EXTRA PROTECTION: CORS Package
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -95,7 +97,7 @@ app.use(
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   })
 );
 
@@ -110,7 +112,7 @@ if (!fs.existsSync(uploadsPath)) {
 }
 app.use("/uploads", express.static(uploadsPath));
 
-// 🔍 Debug Middleware (only for development)
+// 🔍 Debug Middleware
 if (process.env.NODE_ENV !== "production") {
   app.use((req, res, next) => {
     console.log(`➡️ ${req.method} ${req.originalUrl}`);
@@ -118,7 +120,9 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// ✅ API Routes
+// ===============================
+// 📌 API ROUTES
+// ===============================
 app.use("/api/ads", adRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/favorites", favoriteRoutes);
@@ -145,17 +149,17 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "Internal Server Error" });
 });
 
-/* ================================
-   🧩 SOCKET.IO — REAL-TIME CHAT
-================================ */
+// ===============================
+// 🧩 SOCKET.IO — REAL-TIME CHAT
+// ===============================
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PATCH"],
   },
 });
 
-// ✅ Authenticate socket connection
+// 🔐 Authenticate socket connection
 io.use((socket, next) => {
   const uid = socket.handshake.auth?.uid;
   if (!uid) return next(new Error("Missing UID"));
@@ -163,16 +167,16 @@ io.use((socket, next) => {
   next();
 });
 
-// ✅ Main socket logic
+// 🔌 Main socket logic
 io.on("connection", async (socket) => {
   const userId = socket.userId;
   console.log(`🟢 User connected: ${userId}`);
 
-  // 🔹 Mark user online
+  // Mark user online
   setUserOnline(userId, socket.id);
   socket.join(userId);
 
-  // 🔹 Deliver offline messages
+  // Deliver offline messages
   const pending = await Message.find({
     receiverId: userId,
     isDelivered: false,
@@ -186,17 +190,18 @@ io.on("connection", async (socket) => {
     );
   }
 
-  // 🔹 Typing indicator
+  // Typing indicator
   socket.on("typing:update", ({ fromId, toId, isTyping }) => {
     if (fromId !== userId) return;
     setTyping(fromId, toId, isTyping);
+
     const targetSocket = getSocketId(toId);
     if (targetSocket) {
       io.to(toId).emit("typing:status", { fromId, toId, isTyping });
     }
   });
 
-  // 🔹 Send message
+  // Send message
   socket.on("message:send", async (msg, cb) => {
     try {
       if (msg.senderId !== userId)
@@ -215,7 +220,6 @@ io.on("connection", async (socket) => {
         message,
       } = msg;
 
-      // 🔸 Find or create conversation
       const convo = await Conversation.findOneAndUpdate(
         {
           participants: { $all: [senderId, receiverId] },
@@ -232,7 +236,6 @@ io.on("connection", async (socket) => {
         { upsert: true, new: true }
       );
 
-      // 🔸 Save message
       const saved = await Message.create({
         conversationId: convo._id,
         senderId,
@@ -249,7 +252,6 @@ io.on("connection", async (socket) => {
         isDelivered: false,
       });
 
-      // 🔸 Real-time delivery
       const receiverSocket = getSocketId(receiverId);
       if (receiverSocket) {
         io.to(receiverId).emit("message:new", saved);
@@ -266,16 +268,15 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // 🔹 Handle disconnect
   socket.on("disconnect", () => {
     setUserOffline(userId);
     console.log(`🔴 User disconnected: ${userId}`);
   });
 });
 
-/* ================================
-   🚀 START SERVER
-================================ */
+// ===============================
+// 🚀 START SERVER
+// ===============================
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
   console.log(`✅ Zitheke Backend & Chat Server running on port ${PORT}`)
