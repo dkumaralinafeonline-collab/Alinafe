@@ -4,14 +4,18 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema(
   {
     // --- Firebase Identity ---
-    uid: { type: String, required: true, unique: true }, // Firebase UID
+    uid: { type: String, required: true, unique: true },  // Firebase UID
 
-    // --- Basic Info ---
+    // --- Basic Information ---
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     photoURL: { type: String, default: "" },
     phone: { type: String, default: "" },
-    location: { type: String, default: "" },
+
+    // --- Location Info (For Analytics + Nearby Ads) ---
+    location: { type: String, default: "" },   // Full address / area like "Andheri West"
+    city: { type: String, default: "" },       // Clean city name → "Mumbai"
+    state: { type: String, default: "" },      // Optional but useful → "Maharashtra"
 
     // --- Account Status ---
     status: {
@@ -24,11 +28,11 @@ const userSchema = new mongoose.Schema(
     adsPosted: { type: Number, default: 0 },
     lastLogin: { type: Date, default: Date.now },
 
-    // --- 🧡 Favorites List (Wishlist System) ---
+    // --- 🧡 Favorites (Wishlist System) ---
     favorites: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Ad", // Reference to Ad model
+        ref: "Ad",
       },
     ],
   },

@@ -24,8 +24,13 @@ import User from "../models/User.js";
 /* ================================
    🟢 CREATE AD (Pending by default)
 ================================ */
+
+
 export const createAd = async (req, res) => {
   try {
+    console.log("CITY RECEIVED:", req.body.city);
+    console.log("LOCATION RECEIVED:", req.body.location);
+
     const {
       ownerUid,
       ownerName,
@@ -57,12 +62,14 @@ export const createAd = async (req, res) => {
       accessType,
     } = req.body;
 
-    // ✅ Required fields check
+    // REQUIRED FIELDS CHECK
     if (!ownerUid || !title || !description || !category) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return res
+        .status(400)
+        .json({ message: "Missing required fields" });
     }
 
-    // ✅ Fetch owner details if not passed
+    // FETCH OWNER IF NOT PASSED
     let finalName = ownerName;
     let finalEmail = ownerEmail;
     let finalPhone = ownerPhone;
@@ -76,10 +83,12 @@ export const createAd = async (req, res) => {
       }
     }
 
-    // ✅ Handle Cloudinary uploads
-    const imagePaths = req.files ? req.files.map((f) => f.path || f.secure_url) : [];
+    // CLOUDINARY FILES
+    const imagePaths = req.files
+      ? req.files.map((f) => f.path || f.secure_url)
+      : [];
 
-    // ✅ Create ad in "Pending" state
+    // CREATE AD
     const newAd = await Ad.create({
       ownerUid,
       ownerName: finalName || "Unknown Seller",
@@ -94,7 +103,8 @@ export const createAd = async (req, res) => {
       condition,
       city,
       location,
-      deliveryAvailable: deliveryAvailable === "true" || deliveryAvailable === true,
+      deliveryAvailable:
+        deliveryAvailable === "true" || deliveryAvailable === true,
       images: imagePaths,
       bedrooms,
       bathrooms,
@@ -110,24 +120,46 @@ export const createAd = async (req, res) => {
       ageGroup,
       fileType,
       accessType,
-      status: "Pending", // 🟡 user ads will not go live until admin approves
-      reportReason: "",  // clean by default
+      status: "Pending",
+      reportReason: "",
     });
 
-    res.status(201).json({
+    // ⭐ USER CITY UPDATE — SAFE VERSION (NO EMPTY UPDATE)
+    const updateFields = {};
+
+    if (city && city.trim() !== "") {
+      updateFields.city = city.trim();
+    }
+    
+    if (location && location.trim() !== "") {
+      updateFields.location = location.trim();
+    }
+    
+    // update only if we have something to update
+    if (Object.keys(updateFields).length > 0) {
+      await User.updateOne(
+        { uid: ownerUid },
+        { $set: updateFields }
+      );
+    }
+    
+
+    // FINAL RESPONSE
+    return res.status(201).json({
       success: true,
-      message: "✅ Ad submitted successfully and is pending admin approval.",
+      message: "Ad submitted successfully and is pending admin approval.",
       ad: newAd,
     });
   } catch (error) {
     console.error("❌ Error creating ad:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error while creating ad",
       error: error.message,
     });
   }
 };
+
 
 
 /* ================================
