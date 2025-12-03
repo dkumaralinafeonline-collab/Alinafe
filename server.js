@@ -54,7 +54,9 @@ const allowedOrigins = [
   "https://zitheke.netlify.app",
   "https://yourdomain.com",
   "https://zitheke-admin.netlify.app",
+  "https://alinafe-admin.netlify.app",   // ⭐ NEW ADDED
 ];
+
 
 // 🧩 Core Middlewares
 app.use(express.json({ limit: "10mb" }));
