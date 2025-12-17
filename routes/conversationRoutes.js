@@ -4,7 +4,7 @@ import {
   markConversationRead,
   startConversation,
   deleteConversationHard,
-} from "../controllers/conversationController.js";
+} from "../Controllers/conversationController.js";
 
 const router = express.Router();
 

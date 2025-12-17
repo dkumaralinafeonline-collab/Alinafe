@@ -7,7 +7,7 @@ import {
   markSeen,
   deleteForEveryone,
   deleteForMe
-} from "../controllers/messageController.js";
+} from "../Controllers/messageController.js";
 
 const router = express.Router();
 
