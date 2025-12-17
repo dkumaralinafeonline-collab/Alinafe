@@ -1,9 +1,7 @@
-// models/Message.js
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
   {
-    // link to Conversation._id (ObjectId)
     conversationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Conversation",
@@ -14,32 +12,51 @@ const messageSchema = new mongoose.Schema(
     senderId: { type: String, required: true, index: true },
     receiverId: { type: String, required: true, index: true },
 
-    // snapshot sender info
-    senderName: { type: String },
-    senderEmail: { type: String },
-    senderPhoto: { type: String },
+    // text message body
+    message: { type: String, default: "" },
 
-    // snapshot receiver info (good for showing in UI)
-    receiverName: { type: String },
-    receiverEmail: { type: String },
-    receiverPhoto: { type: String },
+    // message type
+    type: {
+      type: String,
+      enum: ["text", "image", "video", "audio", "document"],
+      default: "text",
+    },
 
-    adTitle: { type: String }, // product context
+    // attachment URL
+    mediaUrl: { type: String, default: "" },
+    mediaThumbnail: { type: String, default: "" },
 
-    message: { type: String, required: true },
+    // Reply-to feature
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+    },
 
-    // read receipt
-    isRead: { type: Boolean, default: false },
+    // Forwarded message reference
+    forwardedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+    },
 
-    // delivery tracking
+    // read & delivery status
     isDelivered: { type: Boolean, default: false },
     deliveredAt: { type: Date },
+
+    isRead: { type: Boolean, default: false },
     readAt: { type: Date },
+
+    // delete for everyone
+    isDeleted: { type: Boolean, default: false },
+
+    // delete for me
+    deletedFor: { type: [String], default: [] },
   },
   { timestamps: true }
 );
 
-// sort/filter performance for chat histories
+// For fast pagination
 messageSchema.index({ conversationId: 1, createdAt: 1 });
 
 export default mongoose.models.Message ||

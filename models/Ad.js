@@ -25,7 +25,7 @@ const adSchema = new mongoose.Schema(
     =========================== */
     price: { type: Number },
     negotiable: { type: Boolean, default: false },
-    currency: { type: String, default: "MK" },
+    currency: { type: String, default: "₹" },
 
     /* ===========================
        🖼️ Media

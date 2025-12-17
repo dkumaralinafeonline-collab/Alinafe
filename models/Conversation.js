@@ -5,41 +5,53 @@ const ConversationSchema = new mongoose.Schema(
     participants: {
       type: [String], // [senderId, receiverId]
       required: true,
+      index: true,
     },
+
     productTitle: {
       type: String,
       required: true,
       trim: true,
     },
+
     lastMessage: {
       type: String,
       default: "",
     },
+
     lastSenderId: {
       type: String,
       default: "",
     },
+
+    // 🔥 Better unread count format (Map is safest)
     unreadCounts: {
-      type: Object, // ✅ simpler and JSON-safe
+      type: Map,
+      of: Number,
       default: {},
     },
+
+    // 🔥 sorting field for sidebar
     updatedAtSort: {
       type: Date,
       default: Date.now,
+      index: true,
     },
   },
   { timestamps: true }
 );
 
-/* ✅ FIXED INDEXES */
+/* ================================================
+   INDEXES (Optimized for Chat Performance)
+================================================ */
 
-// ❌ removed old unique index (causing duplicates)
+// ❌ remove unique index – wrong for chat apps
 // ConversationSchema.index({ participants: 1, productTitle: 1 }, { unique: true });
 
-// ✅ use participants-only index
-ConversationSchema.index({ participants: 1 }, { unique: false });
+// 🔥 keep searchable index for participant-based queries
+ConversationSchema.index({ participants: 1 });
 
-// ✅ keep sort index for latest chats
+// 🔥 sort index
 ConversationSchema.index({ updatedAtSort: -1 });
 
 export default mongoose.model("Conversation", ConversationSchema);

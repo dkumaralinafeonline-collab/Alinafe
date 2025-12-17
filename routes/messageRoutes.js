@@ -3,41 +3,42 @@ import express from "express";
 import {
   getMessagesByConversation,
   saveMessage,
-  deleteConversationHard,
-  getUserStatus,
-  getTyping,
-} from "../Controllers/messageController.js";
+  markDelivered,
+  markSeen,
+  deleteForEveryone,
+  deleteForMe
+} from "../controllers/messageController.js";
 
 const router = express.Router();
 
-/**
- * Messages of a single conversation (paginated)
- * GET /api/messages/:conversationId?before=&limit=
- */
+/* ============================================================
+   🔹 Get messages (pagination)
+============================================================ */
 router.get("/:conversationId", getMessagesByConversation);
 
-/**
- * Send/store message (REST fallback)
- * POST /api/messages
- */
+/* ============================================================
+   🔹 Send text / media / reply / forward
+============================================================ */
 router.post("/", saveMessage);
 
-/**
- * Delete entire conversation
- * DELETE /api/messages/hard-delete/:conversationId
- */
-router.delete("/hard-delete/:conversationId", deleteConversationHard);
+/* ============================================================
+   🔹 Mark delivered
+============================================================ */
+router.put("/delivered/:messageId", markDelivered);
 
-/**
- * Presence
- * GET /api/messages/status/:uid
- */
-router.get("/status/:uid", getUserStatus);
+/* ============================================================
+   🔹 Mark seen
+============================================================ */
+router.put("/seen/:conversationId/:userId", markSeen);
 
-/**
- * Typing
- * GET /api/messages/typing/:me/:other
- */
-router.get("/typing/:me/:other", getTyping);
+/* ============================================================
+   🔹 Delete for everyone
+============================================================ */
+router.put("/delete-everyone/:messageId", deleteForEveryone);
+
+/* ============================================================
+   🔹 Delete for me only
+============================================================ */
+router.put("/delete-me/:messageId/:uid", deleteForMe);
 
 export default router;

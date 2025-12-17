@@ -1,4 +1,4 @@
-// 🌐 server.js — Zitheke Ads + Real-Time Chat Backend Server
+// 🌐 server.js — Alinafe + Zitheke Real-Time Chat + Ads Backend
 
 import express from "express";
 import dotenv from "dotenv";
@@ -13,7 +13,7 @@ import mongoose from "mongoose";
 
 import connectDB from "./config/db.js";
 
-// ✅ Import Routes
+// ROUTES
 import adRoutes from "./routes/adsRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import favoriteRoutes from "./routes/favoriteRoutes.js";
@@ -24,47 +24,40 @@ import adminMessageRoutes from "./routes/adminMessageRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import adminAnalyticsRoutes from "./routes/adminAnalyticsRoutes.js";
 
-// ✅ Import Models
+// MODELS
 import Message from "./models/Message.js";
 import Conversation from "./models/Conversation.js";
+import User from "./models/User.js";
 
-// ✅ Presence Helpers
+// Presence utilities
 import {
   setUserOnline,
   setUserOffline,
   setTyping,
-  getSocketId,
+  getSocketId
 } from "./Services/presenceService.js";
 
-// 🧩 Load environment variables
 dotenv.config();
-
-// 🧠 Connect MongoDB
 connectDB();
 
-// ⚙️ Initialize Express
 const app = express();
 const server = http.createServer(app);
 
+// allowed frontends
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
-  "https://alinafe-o4ec.onrender.com",
   "https://alinafe.netlify.app",
   "https://zitheke.netlify.app",
-  "https://yourdomain.com",
   "https://zitheke-admin.netlify.app",
-  "https://alinafe-admin.netlify.app",   // ⭐ NEW ADDED
+  "https://alinafe-admin.netlify.app",
 ];
 
-
-// 🧩 Core Middlewares
-app.use(express.json({ limit: "10mb" }));
+// BODY PARSERS
+app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ===============================
-// 🚀 GLOBAL CORS FIX (FINAL)
-// ===============================
+// GLOBAL CORS
 app.use((req, res, next) => {
   const origin = allowedOrigins.includes(req.headers.origin)
     ? req.headers.origin
@@ -81,87 +74,53 @@ app.use((req, res, next) => {
     "Origin, X-Requested-With, Content-Type, Accept, Authorization"
   );
 
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
+  if (req.method === "OPTIONS") return res.sendStatus(200);
   next();
 });
 
-// 💯 EXTRA PROTECTION: CORS Package
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: allowedOrigins,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   })
 );
 
-// 🖼️ Static Uploads
+// STATIC UPLOADS
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const uploadsPath = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
-  console.log("📁 Created uploads folder at:", uploadsPath);
-}
+if (!fs.existsSync(uploadsPath)) fs.mkdirSync(uploadsPath);
+
 app.use("/uploads", express.static(uploadsPath));
 
-// 🔍 Debug Middleware
-if (process.env.NODE_ENV !== "production") {
-  app.use((req, res, next) => {
-    console.log(`➡️ ${req.method} ${req.originalUrl}`);
-    next();
-  });
-}
-
-// ===============================
-// 📌 API ROUTES
-// ===============================
+// ROUTES
 app.use("/api/ads", adRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/favorites", favoriteRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/conversations", conversationRoutes);
-
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminMessageRoutes);
 app.use("/api/admin", adminAnalyticsRoutes);
-
 app.use("/api/reports", reportRoutes);
 
-// 🏠 Default Route
-app.get("/", (req, res) => {
-  res.send("🔥 Zitheke Ads + Chat API Running Successfully...");
-});
+app.get("/", (req, res) => res.send("🔥 Alinafe + Zitheke API Running"));
 
-// 🚫 404 Handler
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
 
-// 💥 Global Error Handler
-app.use((err, req, res, next) => {
-  console.error("🚨 Server Error:", err.message);
-  res.status(500).json({ message: "Internal Server Error" });
-});
+// ===============================
+//       SOCKET.IO v4.8.1
+// ===============================
 
-// ===============================
-// 🧩 SOCKET.IO — REAL-TIME CHAT
-// ===============================
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
-    methods: ["GET", "POST", "PATCH"],
+    methods: ["GET", "POST", "PUT"],
   },
 });
 
-// 🔐 Authenticate socket connection
+// AUTH SOCKET
 io.use((socket, next) => {
   const uid = socket.handshake.auth?.uid;
   if (!uid) return next(new Error("Missing UID"));
@@ -169,124 +128,199 @@ io.use((socket, next) => {
   next();
 });
 
-// 🔌 Main socket logic
+// SOCKET CONNECTION
 io.on("connection", async (socket) => {
   const userId = socket.userId;
-  console.log(`🟢 User connected: ${userId}`);
 
-  // Mark user online
+  console.log(`🟢 User Connected: ${userId}`);
   setUserOnline(userId, socket.id);
+
+  await User.updateOne({ uid: userId }, { lastSeen: new Date() });
+
+  // Personal room = DM delivery
   socket.join(userId);
 
   // Deliver offline messages
-  const pending = await Message.find({
+  const offline = await Message.find({
     receiverId: userId,
     isDelivered: false,
   }).sort({ createdAt: 1 });
 
-  if (pending.length > 0) {
-    socket.emit("message:deliver-batch", pending);
+  if (offline.length > 0) {
+    socket.emit("message:batch-deliver", offline);
+
     await Message.updateMany(
       { receiverId: userId, isDelivered: false },
-      { $set: { isDelivered: true, deliveredAt: new Date() } }
+      { isDelivered: true, deliveredAt: new Date() }
     );
   }
 
-  // Typing indicator
+  // Join chat room
+  socket.on("conversation:join", (conversationId) => {
+    socket.join(conversationId);
+  });
+
+  socket.on("conversation:leave", (conversationId) => {
+    socket.leave(conversationId);
+  });
+
+  // =========================================================
+  // 🔵 FIXED TYPING INDICATOR (WORKS 100%)
+  // =========================================================
   socket.on("typing:update", ({ fromId, toId, isTyping }) => {
-    if (fromId !== userId) return;
     setTyping(fromId, toId, isTyping);
 
-    const targetSocket = getSocketId(toId);
-    if (targetSocket) {
-      io.to(toId).emit("typing:status", { fromId, toId, isTyping });
-    }
-  });
-
-  // Send message
-  socket.on("message:send", async (msg, cb) => {
-    try {
-      if (msg.senderId !== userId)
-        return cb({ success: false, error: "Unauthorized" });
-
-      const {
-        senderId,
-        receiverId,
-        senderName,
-        senderEmail,
-        senderPhoto,
-        receiverName,
-        receiverEmail,
-        receiverPhoto,
-        adTitle,
-        message,
-      } = msg;
-
-      const convo = await Conversation.findOneAndUpdate(
-        {
-          participants: { $all: [senderId, receiverId] },
-          productTitle: adTitle || "Listing",
-        },
-        {
-          $set: {
-            lastMessage: message,
-            lastSenderId: senderId,
-            updatedAtSort: new Date(),
-          },
-          $inc: { [`unreadCounts.${receiverId}`]: 1 },
-        },
-        { upsert: true, new: true }
-      );
-
-      const saved = await Message.create({
-        conversationId: convo._id,
-        senderId,
-        receiverId,
-        senderName,
-        senderEmail,
-        senderPhoto,
-        receiverName,
-        receiverEmail,
-        receiverPhoto,
-        adTitle: adTitle || "Listing",
-        message,
-        isRead: false,
-        isDelivered: false,
+    const receiverSocket = getSocketId(toId);
+    if (receiverSocket) {
+      io.to(receiverSocket).emit("typing:status", {
+        fromId,
+        toId,
+        isTyping,
       });
-
-      const receiverSocket = getSocketId(receiverId);
-      if (receiverSocket) {
-        io.to(receiverId).emit("message:new", saved);
-        await Message.updateOne(
-          { _id: saved._id },
-          { $set: { isDelivered: true, deliveredAt: new Date() } }
-        );
-      }
-
-      cb({ success: true, message: saved });
-    } catch (err) {
-      console.error("❌ message:send error:", err);
-      cb({ success: false, error: err.message });
     }
   });
 
-  socket.on("disconnect", () => {
-    setUserOffline(userId);
+  // =========================================================
+  // SEND MESSAGE — fixed conversationId issue
+  // =========================================================
+// SEND MESSAGE — text + image + video + pdf + file
+socket.on("message:send", async (msg, cb) => {
+  try {
+    if (msg.senderId !== userId) {
+      return cb({ success: false, error: "Unauthorized" });
+    }
+
+    const {
+      senderId,
+      receiverId,
+      senderName,
+      senderEmail,
+      senderPhoto,
+      receiverName,
+      receiverEmail,
+      receiverPhoto,
+      adTitle,
+      message,
+      type,
+      mediaUrl,
+      mediaName,
+      mediaThumbnail,
+    } = msg;
+
+    // 🧠 Decide what to show in conversation preview
+    let previewText = message || "";
+    if (type && type !== "text") {
+      if (type === "image") previewText = "[Photo]";
+      else if (type === "video") previewText = "[Video]";
+      else if (type === "pdf") previewText = mediaName || "[PDF]";
+      else previewText = mediaName || "[Attachment]";
+    }
+
+    // 1️⃣ Find or create conversation
+    let convo = await Conversation.findOne({
+      participants: { $all: [senderId, receiverId] },
+      productTitle: adTitle || "Listing",
+    });
+
+    if (!convo) {
+      convo = await Conversation.create({
+        participants: [senderId, receiverId],
+        productTitle: adTitle || "Listing",
+        unreadCounts: {
+          [senderId]: 0,
+          [receiverId]: 1,
+        },
+        lastMessage: previewText,
+        lastSenderId: senderId,
+        updatedAtSort: new Date(),
+      });
+    } else {
+      convo.lastMessage = previewText;
+      convo.lastSenderId = senderId;
+      convo.updatedAtSort = new Date();
+      convo.unreadCounts[receiverId] =
+        (convo.unreadCounts[receiverId] || 0) + 1;
+      await convo.save();
+    }
+
+    // 2️⃣ Save full message with media fields
+    const saved = await Message.create({
+      conversationId: convo._id,
+      senderId,
+      receiverId,
+      senderName,
+      senderEmail,
+      senderPhoto,
+      receiverName,
+      receiverEmail,
+      receiverPhoto,
+      adTitle: adTitle || "Listing",
+      message: message || "",
+      type: type || "text",
+      mediaUrl: mediaUrl || "",
+      mediaName: mediaName || "",
+      mediaThumbnail: mediaThumbnail || "",
+      isRead: false,
+      isDelivered: false,
+    });
+
+    // 3️⃣ Deliver to receiver if online
+    const receiverSocket = getSocketId(receiverId);
+    if (receiverSocket) {
+      io.to(receiverId).emit("message:new", saved);
+
+      await Message.updateOne(
+        { _id: saved._id },
+        { isDelivered: true, deliveredAt: new Date() }
+      );
+    }
+
+    cb({ success: true, message: saved });
+  } catch (err) {
+    console.error("❌ message:send error:", err);
+    cb({ success: false, error: err.message });
+  }
+});
+
+
+  // Mark seen
+  socket.on("message:seen", async ({ conversationId, userId }) => {
+    await Message.updateMany(
+      { conversationId, receiverId: userId, isRead: false },
+      { isRead: true, readAt: new Date() }
+    );
+
+    io.to(conversationId).emit("message:update-seen", { userId });
+  });
+
+  // Delete for everyone
+  socket.on("message:delete-everyone", async (msgId) => {
+    await Message.updateOne(
+      { _id: msgId },
+      { isDeleted: true, message: "", mediaUrl: "" }
+    );
+
+    io.emit("message:deleted-everyone", msgId);
+  });
+
+  // Disconnect
+  socket.on("disconnect", async () => {
     console.log(`🔴 User disconnected: ${userId}`);
+    setUserOffline(userId);
+
+    await User.updateOne({ uid: userId }, { lastSeen: new Date() });
   });
 });
 
-// ===============================
-// 🚀 START SERVER
-// ===============================
+// START SERVER
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () =>
-  console.log(`✅ Zitheke Backend & Chat Server running on port ${PORT}`)
+  console.log(`✅ Alinafe/Zitheke Server running on PORT ${PORT}`)
 );
 
-// 🧹 Graceful shutdown
+// Graceful Shutdown
 process.on("SIGINT", async () => {
-  console.log("🔴 Shutting down gracefully...");
+  console.log("🔻 Closing Server...");
   await mongoose.connection.close();
   process.exit(0);
 });

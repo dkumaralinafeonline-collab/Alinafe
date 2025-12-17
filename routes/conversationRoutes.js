@@ -3,17 +3,21 @@ import {
   getUserConversations,
   markConversationRead,
   startConversation,
-} from "../Controllers/conversationController.js";
+  deleteConversationHard,
+} from "../controllers/conversationController.js";
 
 const router = express.Router();
 
-// 🟢 Start new or fetch existing
+// Start new or fetch existing conversation
 router.post("/start", startConversation);
 
-// 🟢 Get all conversations for a user
+// Get all conversations of a user
 router.get("/:uid", getUserConversations);
 
-// 🟢 Mark conversation as read
+// Mark conversation read
 router.put("/:conversationId/mark-read/:userId", markConversationRead);
+
+// Hard delete a conversation
+router.delete("/delete/:conversationId", deleteConversationHard);
 
 export default router;

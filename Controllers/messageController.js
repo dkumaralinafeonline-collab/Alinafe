@@ -2,178 +2,212 @@
 import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
 import User from "../models/User.js";
-import { isUserOnline, getTypingStatus } from "../Services/presenceService.js";
 
-/* ========================================
-   Utility Helpers
-======================================== */
-function normalizeName(name, email) {
-  if (name && name !== "Unknown") return name;
-  if (email) return email?.split("@")[0] || "User";
-  return "User";
+/* =====================================================
+   🔹 Utility
+===================================================== */
+function detectType(body, fileUrl) {
+  if (fileUrl) return body.type || "image";
+  return "text";
 }
 
-function generateAvatar(name) {
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-    name || "User"
-  )}&background=2E3192&color=fff&bold=true`;
-}
-
-/* ========================================
-   1️⃣ Get messages by conversation (Paginated)
-   GET /api/messages/:conversationId?before=timestamp&limit=30
-======================================== */
+/* =====================================================
+   🔹 Get Messages (Older + Newer Pagination)
+   GET /api/messages/:conversationId?before=&after=&limit=
+===================================================== */
 export const getMessagesByConversation = async (req, res) => {
   const { conversationId } = req.params;
-  const { before, limit = 30 } = req.query;
+  const { before, after, limit = 30 } = req.query;
 
   try {
     const query = { conversationId };
+
     if (before) query.createdAt = { $lt: new Date(before) };
+    if (after) query.createdAt = { $gt: new Date(after) };
 
     const msgs = await Message.find(query)
       .sort({ createdAt: -1 })
       .limit(Number(limit))
+      .populate("replyTo forwardedFrom")
       .lean();
 
     res.json(msgs.reverse());
   } catch (err) {
-    console.error("❌ Error fetching messages:", err);
+    console.error("❌ Pagination Error:", err);
     res.status(500).json({ error: "Error fetching messages" });
   }
 };
 
-/* ========================================
-   2️⃣ Save message (REST Fallback)
-   POST /api/messages
-======================================== */
+/* =====================================================
+   🔹 Send New Message (Text/Media/Reply/Forward)
+===================================================== */
 export const saveMessage = async (req, res) => {
   try {
     const {
       senderId,
       receiverId,
-      senderName,
-      senderEmail,
-      senderPhoto,
-      receiverName,
-      receiverEmail,
-      receiverPhoto,
-      adTitle,
       message,
+      mediaUrl,
+      mediaThumbnail,
+      replyTo,
+      forwardedFrom,
+      adTitle,
     } = req.body;
 
-    if (!senderId || !receiverId || !message) {
+    if (!senderId || !receiverId) {
       return res.status(400).json({ error: "Missing required fields" });
     }
-    if (senderId === receiverId) {
-      return res.status(400).json({ error: "Cannot message yourself" });
-    }
 
-    /* 🟢 Step 1: Normalize Sender Info */
-    const sName = senderName || normalizeName(senderName, senderEmail);
-    const sEmail = senderEmail || "";
-    const sPhoto =
-      senderPhoto && senderPhoto.trim() !== ""
-        ? senderPhoto
-        : generateAvatar(sName);
+    // Detect message type
+    const finalType = detectType(req.body, mediaUrl);
 
-    /* 🟢 Step 2: Fetch Receiver Info (if missing) */
-    let rName = receiverName;
-    let rEmail = receiverEmail;
-    let rPhoto = receiverPhoto;
-
-    if (!rName || !rEmail) {
-      const receiver = await User.findOne({ uid: receiverId }).lean();
-      if (receiver) {
-        rName = receiver.name || receiver.displayName || "User";
-        rEmail = receiver.email || "";
-        rPhoto =
-          receiver.photoURL && receiver.photoURL.trim() !== ""
-            ? receiver.photoURL
-            : generateAvatar(rName);
-      } else {
-        rName = "User";
-        rEmail = "";
-        rPhoto = generateAvatar(rName);
-      }
-    }
-
-    /* 🟢 Step 3: Find or Create Conversation */
+    /* =====================================================
+       🟢 Find or create conversation
+    ====================================================== */
     let convo = await Conversation.findOne({
       participants: { $all: [senderId, receiverId] },
       productTitle: adTitle || "Listing",
     });
 
     if (!convo) {
+      // If no conversation exists → create one
       convo = await Conversation.create({
         participants: [senderId, receiverId],
         productTitle: adTitle || "Listing",
-        lastMessage: message,
+        lastMessage: finalType === "text" ? message : `[${finalType}]`,
         lastSenderId: senderId,
-        unreadCounts: { [receiverId]: 1 },
+        unreadCounts: {
+          [senderId]: 0,
+          [receiverId]: 1,
+        },
         updatedAtSort: new Date(),
       });
     } else {
-      convo.lastMessage = message;
+      // Update existing conversation
+      convo.lastMessage =
+        finalType === "text" ? message : `[${finalType}]`;
       convo.lastSenderId = senderId;
       convo.updatedAtSort = new Date();
-      convo.unreadCounts = {
-        ...convo.unreadCounts,
-        [receiverId]: (convo.unreadCounts?.[receiverId] || 0) + 1,
-      };
+
+      // Support both Map and Object
+      if (typeof convo.unreadCounts?.get === "function") {
+        convo.unreadCounts.set(
+          receiverId,
+          (convo.unreadCounts.get(receiverId) || 0) + 1
+        );
+      } else {
+        convo.unreadCounts[receiverId] =
+          (convo.unreadCounts?.[receiverId] || 0) + 1;
+      }
+
       await convo.save();
     }
 
-    /* 🟢 Step 4: Save Message */
+    /* =====================================================
+       🟢 Create message document
+    ====================================================== */
     const newMessage = await Message.create({
       conversationId: convo._id,
       senderId,
       receiverId,
-      senderName: sName,
-      senderEmail: sEmail,
-      senderPhoto: sPhoto,
-      receiverName: rName,
-      receiverEmail: rEmail,
-      receiverPhoto: rPhoto,
-      adTitle: adTitle || "Listing",
       message,
-      isRead: false,
+      type: finalType,
+      mediaUrl,
+      mediaThumbnail,
+      replyTo,
+      forwardedFrom,
       isDelivered: false,
+      isRead: false,
     });
 
-    res.status(201).json(newMessage);
+    const populatedMsg = await newMessage.populate(
+      "replyTo forwardedFrom"
+    );
+
+    res.status(201).json(populatedMsg);
   } catch (error) {
-    console.error("❌ Error saving message:", error);
-    res.status(500).json({ error: "Error saving message" });
+    console.error("❌ Send Message Error:", error);
+    res.status(500).json({ error: "Error sending message" });
   }
 };
 
-/* ========================================
-   3️⃣ Hard Delete Conversation
-======================================== */
-export const deleteConversationHard = async (req, res) => {
-  const { conversationId } = req.params;
+/* =====================================================
+   🔹 Mark Delivered
+===================================================== */
+export const markDelivered = async (req, res) => {
+  const { messageId } = req.params;
+
   try {
-    await Message.deleteMany({ conversationId });
-    await Conversation.deleteOne({ _id: conversationId });
+    await Message.updateOne(
+      { _id: messageId },
+      { isDelivered: true, deliveredAt: new Date() }
+    );
 
-    res.json({ success: true, message: "Conversation and all messages deleted." });
+    res.json({ success: true });
   } catch (err) {
-    console.error("❌ Error deleting conversation:", err);
-    res.status(500).json({ error: "Error deleting conversation" });
+    console.error("❌ Mark delivered error:", err);
+    res.status(500).json({ error: "Error marking delivered" });
   }
 };
 
-/* ========================================
-   4️⃣ Status Helpers
-======================================== */
-export const getUserStatus = (req, res) => {
-  const { uid } = req.params;
-  res.json({ userId: uid, online: isUserOnline(uid) });
+/* =====================================================
+   🔹 Mark Seen
+===================================================== */
+export const markSeen = async (req, res) => {
+  const { conversationId, userId } = req.params;
+
+  try {
+    await Message.updateMany(
+      { conversationId, receiverId: userId, isRead: false },
+      { isRead: true, readAt: new Date() }
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Seen Error:", err);
+    res.status(500).json({ error: "Error marking seen" });
+  }
 };
 
-export const getTyping = (req, res) => {
-  const { me, other } = req.params;
-  const data = getTypingStatus(me, other);
-  res.json(data);
+/* =====================================================
+   🔹 Delete For Everyone
+===================================================== */
+export const deleteForEveryone = async (req, res) => {
+  const { messageId } = req.params;
+
+  try {
+    await Message.updateOne(
+      { _id: messageId },
+      {
+        isDeleted: true,
+        message: "",
+        mediaUrl: "",
+        mediaThumbnail: "",
+      }
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Delete Everyone Error:", err);
+    res.status(500).json({ error: "Error deleting for everyone" });
+  }
+};
+
+/* =====================================================
+   🔹 Delete For Me Only
+===================================================== */
+export const deleteForMe = async (req, res) => {
+  const { messageId, uid } = req.params;
+
+  try {
+    await Message.updateOne(
+      { _id: messageId },
+      { $addToSet: { deletedFor: uid } }
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Delete Me Error:", err);
+    res.status(500).json({ error: "Error deleting message for user" });
+  }
 };
