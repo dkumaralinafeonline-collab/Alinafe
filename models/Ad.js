@@ -4,124 +4,139 @@ import mongoose from "mongoose";
 const adSchema = new mongoose.Schema(
   {
     /* ===========================
-       🧑 Ownership & Identity
+       👤 OWNERSHIP & IDENTITY
     =========================== */
-    ownerUid: { type: String, required: true }, // Firebase UID or internal user ID
-    ownerName: { type: String },
-    ownerEmail: { type: String },
-    ownerPhone: { type: String },
+    ownerUid: { type: String, required: true },
+    ownerName: { type: String, default: "" },
+    ownerEmail: { type: String, default: "" },
+    ownerPhone: { type: String, default: "" },
 
     /* ===========================
-       📦 Core Ad Info
+       📦 CORE AD INFO
     =========================== */
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
     category: { type: String, required: true },
-    subcategory: { type: String },
-    condition: { type: String, enum: ["New", "Used"], default: "Used" },
+    subcategory: { type: String, default: "" },
+
+    // ❗ Jobs / Services / Pets me condition use nahi hoti
+    condition: {
+      type: String,
+      enum: ["New", "Used"],
+      default: "Used",
+    },
 
     /* ===========================
-       💰 Pricing
+       💰 PRICING
     =========================== */
-    price: { type: Number },
+    price: { type: Number, default: null },
     negotiable: { type: Boolean, default: false },
     currency: { type: String, default: "₹" },
 
     /* ===========================
-       🖼️ Media
+       🖼️ MEDIA
     =========================== */
-    images: [{ type: String }], // Cloudinary URLs
+    images: [{ type: String }],
     videoUrl: { type: String, default: "" },
 
     /* ===========================
-       📍 Location
+       📍 LOCATION
     =========================== */
-    city: { type: String, trim: true },
-    location: { type: String, trim: true },
+    city: { type: String, trim: true, default: "" },
+    location: { type: String, trim: true, default: "" },
     deliveryAvailable: { type: Boolean, default: false },
 
-    /* ===========================
-       🚗 Vehicle Fields
-    =========================== */
-    year: { type: String, default: "" },
-    mileage: { type: String, default: "" },
-
-    /* ===========================
-       🏠 Real Estate Fields
-    =========================== */
+    /* =================================================
+       🏠 REAL ESTATE
+    ================================================= */
     bedrooms: { type: String, default: "" },
     bathrooms: { type: String, default: "" },
     area: { type: String, default: "" },
+    furnishing: { type: String, default: "" },
 
-    /* ===========================
-       ⚡ Electronics Fields
-    =========================== */
+    /* =================================================
+       🚗 VEHICLES
+    ================================================= */
     brand: { type: String, default: "" },
-    warranty: { type: String, default: "" },
+    year: { type: String, default: "" },
+    mileage: { type: String, default: "" },
+    fuelType: { type: String, default: "" },
 
-    /* ===========================
-       👕 Fashion Fields
-    =========================== */
+    /* =================================================
+       ⚡ ELECTRONICS
+    ================================================= */
+    model: { type: String, default: "" },
+    warranty: { type: String, default: "" },
+    conditionNote: { type: String, default: "" },
+
+    /* =================================================
+       👕 FASHION
+    ================================================= */
     size: { type: String, default: "" },
     color: { type: String, default: "" },
 
-    /* ===========================
-       💼 Job & Service Fields
-    =========================== */
+    /* =================================================
+       💼 JOBS
+    ================================================= */
     salary: { type: String, default: "" },
+    jobType: { type: String, default: "" },       // Full-time / Part-time
+    experience: { type: String, default: "" },    // 0-1, 2-3 years
+    company: { type: String, default: "" },
 
-    /* ===========================
-       🌾 Agriculture / Business Fields
-    =========================== */
+    /* =================================================
+       🐶 PETS
+    ================================================= */
+    petType: { type: String, default: "" },        // Dog / Cat
+    breed: { type: String, default: "" },
+    age: { type: String, default: "" },
+    vaccinated: { type: String, default: "" },    // Yes / No
+
+    /* =================================================
+       🛠 SERVICES
+    ================================================= */
+    serviceType: { type: String, default: "" },
+    availability: { type: String, default: "" },  // Full day / Weekends
+    serviceArea: { type: String, default: "" },
+
+    /* =================================================
+       📦 AGRICULTURE / BUSINESS
+    ================================================= */
     quantity: { type: String, default: "" },
 
-    /* ===========================
-       🎓 Kids & Education Fields
-    =========================== */
+    /* =================================================
+       🎓 KIDS / EDUCATION
+    ================================================= */
     ageGroup: { type: String, default: "" },
 
-    /* ===========================
-       💻 Digital Product Fields
-    =========================== */
+    /* =================================================
+       💻 DIGITAL PRODUCTS
+    ================================================= */
     fileType: { type: String, default: "" },
     accessType: { type: String, default: "" },
 
     /* ===========================
-       📊 Analytics & System Data
+       📊 ANALYTICS
     =========================== */
     views: { type: Number, default: 0 },
     favouritesCount: { type: Number, default: 0 },
+    viewedBy: { type: [String], default: [] },
 
-    // 🧠 NEW: unique view tracking
-    viewedBy: {
-      type: [String], // userId or guestId
-      default: [],
-    },
-
+    /* ===========================
+       🛡 STATUS & MODERATION
+    =========================== */
     status: {
       type: String,
       enum: ["Pending", "Approved", "Rejected", "Sold", "Deleted", "Active"],
       default: "Pending",
     },
     featured: { type: Boolean, default: false },
-    expiryDate: { type: Date },
-    
-    /* ===========================
-       🚨 Moderation
-    =========================== */
+    expiryDate: { type: Date, default: null },
+
     reported: { type: Boolean, default: false },
     reportReason: { type: String, default: "" },
-    rejectionReason: { type: String, default: "" }, // ✅ add this
-    
+    rejectionReason: { type: String, default: "" },
   },
   { timestamps: true }
 );
-
-/* ===========================
-   ⚙️ Optional: Auto-clean old view records (30 days)
-=========================== */
-adSchema.methods.cleanupOldViews = function () {
-  // (Optional) you can expand this later if storing timestamps for views
-};
 
 export default mongoose.model("Ad", adSchema);
