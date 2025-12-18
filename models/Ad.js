@@ -6,45 +6,111 @@ const adSchema = new mongoose.Schema(
     /* ===========================
        👤 OWNERSHIP & IDENTITY
     =========================== */
-    ownerUid: { type: String, required: true },
-    ownerName: { type: String, default: "" },
-    ownerEmail: { type: String, default: "" },
-    ownerPhone: { type: String, default: "" },
+    ownerUid: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    ownerName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    ownerEmail: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    ownerPhone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
     /* ===========================
        📦 CORE AD INFO
     =========================== */
-    title: { type: String, required: true, trim: true },
-    description: { type: String, required: true, trim: true },
-    category: { type: String, required: true },
-    subcategory: { type: String, default: "" },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 5,
+    },
+    description: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 10,
+    },
+    category: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    subcategory: {
+      type: String,
+      default: "",
+      trim: true,
+    },
 
-    // ❗ Jobs / Services / Pets me condition use nahi hoti
+    /* ===========================
+       🧱 CONDITION
+       (Not applicable for Jobs / Services / Pets)
+    =========================== */
     condition: {
       type: String,
-      enum: ["New", "Used"],
-      default: "Used",
+      enum: ["New", "Used", "Not Applicable"],
+      default: "Not Applicable",
     },
 
     /* ===========================
        💰 PRICING
     =========================== */
-    price: { type: Number, default: null },
-    negotiable: { type: Boolean, default: false },
-    currency: { type: String, default: "₹" },
+    price: {
+      type: Number,
+      default: null,
+      min: 0,
+      index: true,
+    },
+    negotiable: {
+      type: Boolean,
+      default: false,
+    },
+    currency: {
+      type: String,
+      default: "₹",
+    },
 
     /* ===========================
        🖼️ MEDIA
     =========================== */
-    images: [{ type: String }],
-    videoUrl: { type: String, default: "" },
+    images: {
+      type: [String],
+      default: [],
+    },
+    videoUrl: {
+      type: String,
+      default: "",
+    },
 
     /* ===========================
        📍 LOCATION
     =========================== */
-    city: { type: String, trim: true, default: "" },
-    location: { type: String, trim: true, default: "" },
-    deliveryAvailable: { type: Boolean, default: false },
+    city: {
+      type: String,
+      trim: true,
+      default: "",
+      index: true,
+    },
+    location: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    deliveryAvailable: {
+      type: Boolean,
+      default: false,
+    },
 
     /* =================================================
        🏠 REAL ESTATE
@@ -63,7 +129,7 @@ const adSchema = new mongoose.Schema(
     fuelType: { type: String, default: "" },
 
     /* =================================================
-       ⚡ ELECTRONICS
+       ⚡ ELECTRONICS / MOBILES
     ================================================= */
     model: { type: String, default: "" },
     warranty: { type: String, default: "" },
@@ -78,24 +144,28 @@ const adSchema = new mongoose.Schema(
     /* =================================================
        💼 JOBS
     ================================================= */
-    salary: { type: String, default: "" },
-    jobType: { type: String, default: "" },       // Full-time / Part-time
-    experience: { type: String, default: "" },    // 0-1, 2-3 years
+    salary: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    jobType: { type: String, default: "" },        // Full-time / Part-time
+    experience: { type: String, default: "" },     // 0-1, 2-3 yrs
     company: { type: String, default: "" },
 
     /* =================================================
        🐶 PETS
     ================================================= */
-    petType: { type: String, default: "" },        // Dog / Cat
+    petType: { type: String, default: "" },
     breed: { type: String, default: "" },
     age: { type: String, default: "" },
-    vaccinated: { type: String, default: "" },    // Yes / No
+    vaccinated: { type: String, default: "" },     // Yes / No
 
     /* =================================================
        🛠 SERVICES
     ================================================= */
     serviceType: { type: String, default: "" },
-    availability: { type: String, default: "" },  // Full day / Weekends
+    availability: { type: String, default: "" },   // Full day / Weekends
     serviceArea: { type: String, default: "" },
 
     /* =================================================
@@ -117,9 +187,18 @@ const adSchema = new mongoose.Schema(
     /* ===========================
        📊 ANALYTICS
     =========================== */
-    views: { type: Number, default: 0 },
-    favouritesCount: { type: Number, default: 0 },
-    viewedBy: { type: [String], default: [] },
+    views: {
+      type: Number,
+      default: 0,
+    },
+    favouritesCount: {
+      type: Number,
+      default: 0,
+    },
+    viewedBy: {
+      type: [String],
+      default: [],
+    },
 
     /* ===========================
        🛡 STATUS & MODERATION
@@ -128,15 +207,40 @@ const adSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "Approved", "Rejected", "Sold", "Deleted", "Active"],
       default: "Pending",
+      index: true,
     },
-    featured: { type: Boolean, default: false },
-    expiryDate: { type: Date, default: null },
+    featured: {
+      type: Boolean,
+      default: false,
+    },
+    expiryDate: {
+      type: Date,
+      default: null,
+    },
 
-    reported: { type: Boolean, default: false },
-    reportReason: { type: String, default: "" },
-    rejectionReason: { type: String, default: "" },
+    reported: {
+      type: Boolean,
+      default: false,
+    },
+    reportReason: {
+      type: String,
+      default: "",
+    },
+    rejectionReason: {
+      type: String,
+      default: "",
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
+
+/* ===========================
+   🔍 INDEXES (SEARCH / FILTER)
+=========================== */
+adSchema.index({ title: "text", description: "text" });
+adSchema.index({ category: 1, city: 1, price: 1 });
+adSchema.index({ ownerUid: 1, createdAt: -1 });
 
 export default mongoose.model("Ad", adSchema);
