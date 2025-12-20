@@ -1062,33 +1062,357 @@
 
 // migrate();
 // updatePhone.js
+
+
+// import mongoose from "mongoose";
+
+// // 1️⃣ Use your REAL database name here
+// const MONGO_URI =
+//   "mongodb+srv://alinafe:dfHC2WiE7NUavDjQ@alinafe.lxc6cvj.mongodb.net/Zitheke?retryWrites=true&w=majority";
+
+// async function updateOwnerPhone() {
+//   try {
+//     await mongoose.connect(MONGO_URI);
+//     console.log("MongoDB connected ✔");
+
+//     const sellerEmail = "nextgencodex@gmail.com";
+//     const newPhone = "6397632458";
+
+//     const result = await mongoose.connection
+//       .collection("ads")
+//       .updateMany(
+//         { ownerEmail: sellerEmail },
+//         { $set: { ownerPhone: newPhone } }
+//       );
+
+//     console.log(`Updated ${result.modifiedCount} ads ✔`);
+//     process.exit();
+//   } catch (err) {
+//     console.error("Error:", err);
+//     process.exit(1);
+//   }
+// }
+
+// updateOwnerPhone();
+
+
+
+// import mongoose from "mongoose";
+// import dotenv from "dotenv";
+// import Ad from "../models/Ad.js"; // path check kar lena
+
+// dotenv.config();
+
+// const MONGO_URI = process.env.MONGO_URI;
+
+// const migrate = async () => {
+//   try {
+//     await mongoose.connect(MONGO_URI);
+//     console.log("✅ MongoDB connected");
+
+//     /* =========================
+//        🚗 VEHICLES
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Vehicles",
+//         brand: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           brand: "",
+//           year: "",
+//           mileage: "",
+//           fuelType: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        🏠 REAL ESTATE
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Real Estate",
+//         bedrooms: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           bedrooms: "",
+//           bathrooms: "",
+//           area: "",
+//           furnishing: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        📱 MOBILES
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Mobiles",
+//         brand: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           brand: "",
+//           model: "",
+//           storage: "",
+//           warranty: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        💻 ELECTRONICS
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Electronics",
+//         brand: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           brand: "",
+//           model: "",
+//           warranty: "",
+//           conditionNote: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        🛋️ HOME FURNITURE
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "HomeFurniture",
+//         material: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           material: "",
+//           brand: "",
+//           dimensions: "",
+//           conditionNote: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        🧸 KIDS
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Kids",
+//         ageGroup: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           ageGroup: "",
+//           brand: "",
+//           material: "",
+//           conditionNote: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        🏏 SPORTS
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Sports",
+//         sportType: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           sportType: "",
+//           brand: "",
+//           size: "",
+//           conditionNote: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        👗 FASHION
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Fashion",
+//         size: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           size: "",
+//           color: "",
+//           brand: "",
+//           material: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        📚 BOOKS
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Books",
+//         author: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           author: "",
+//           publisher: "",
+//           edition: "",
+//           language: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        🐶 PETS
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Pets",
+//         petType: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           petType: "",
+//           breed: "",
+//           age: "",
+//           vaccinated: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        🛠️ SERVICES
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Services",
+//         serviceType: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           serviceType: "",
+//           experience: "",
+//           availability: "",
+//           serviceArea: "",
+//         },
+//       }
+//     );
+
+//     /* =========================
+//        💼 JOBS
+//     ========================= */
+//     await Ad.updateMany(
+//       {
+//         category: "Jobs",
+//         jobType: { $exists: false },
+//       },
+//       {
+//         $set: {
+//           salary: null,
+//           jobType: "",
+//           experience: "",
+//           company: "",
+//         },
+//       }
+//     );
+
+//     console.log("🎉 MIGRATION COMPLETED SUCCESSFULLY");
+//     process.exit(0);
+//   } catch (err) {
+//     console.error("❌ Migration failed:", err);
+//     process.exit(1);
+//   }
+// };
+
+// migrate();
+
+
+
+// import mongoose from "mongoose";
+// import dotenv from "dotenv";
+// import Ad from "../backend/models/Ad.js"; // path check kar lena
+
+// dotenv.config();
+
+// const MONGO_URI = process.env.MONGO_URI;
+
+// const run = async () => {
+//   try {
+//     await mongoose.connect(MONGO_URI);
+//     console.log("✅ MongoDB connected");
+
+//     const result = await Ad.updateMany(
+//       {
+//         category: "Real Estate",
+//         furnishing: { $exists: false }, // 👈 sirf purane ads
+//       },
+//       {
+//         $set: {
+//           furnishing: "", // default empty
+//         },
+//       }
+//     );
+
+//     console.log(
+//       `🏠 Real Estate ads updated: ${result.modifiedCount}`
+//     );
+
+//     console.log("🎉 DONE: furnishing added to existing ads only");
+//     process.exit(0);
+//   } catch (err) {
+//     console.error("❌ Error:", err);
+//     process.exit(1);
+//   }
+// };
+
+// run();
+
+
+
+
 import mongoose from "mongoose";
+import dotenv from "dotenv";
+import Ad from "../backend/models/Ad.js";
 
-// 1️⃣ Use your REAL database name here
-const MONGO_URI =
-  "mongodb+srv://alinafe:dfHC2WiE7NUavDjQ@alinafe.lxc6cvj.mongodb.net/Zitheke?retryWrites=true&w=majority";
+dotenv.config();
 
-async function updateOwnerPhone() {
+const MONGO_URI = process.env.MONGO_URI;
+
+const cleanupInvalidGeo = async () => {
   try {
+    console.log("🔌 Connecting to MongoDB Atlas...");
     await mongoose.connect(MONGO_URI);
-    console.log("MongoDB connected ✔");
 
-    const sellerEmail = "nextgencodex@gmail.com";
-    const newPhone = "6397632458";
+    console.log("🧹 Cleaning invalid geo fields...");
 
-    const result = await mongoose.connection
-      .collection("ads")
-      .updateMany(
-        { ownerEmail: sellerEmail },
-        { $set: { ownerPhone: newPhone } }
-      );
+    const result = await Ad.updateMany(
+      {
+        "geo.coordinates": { $exists: false },
+      },
+      {
+        $unset: { geo: "" },
+      }
+    );
 
-    console.log(`Updated ${result.modifiedCount} ads ✔`);
-    process.exit();
-  } catch (err) {
-    console.error("Error:", err);
+    console.log("✅ Cleanup complete");
+    console.log("Matched:", result.matchedCount);
+    console.log("Modified:", result.modifiedCount);
+
+    process.exit(0);
+  } catch (error) {
+    console.error("❌ Cleanup failed:", error);
     process.exit(1);
   }
-}
+};
 
-updateOwnerPhone();
+cleanupInvalidGeo();

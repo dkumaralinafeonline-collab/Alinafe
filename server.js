@@ -23,6 +23,12 @@ import adminRoutes from "./routes/adminRoutes.js";
 import adminMessageRoutes from "./routes/adminMessageRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
 import adminAnalyticsRoutes from "./routes/adminAnalyticsRoutes.js";
+import sellerStatsRoutes from "./routes/sellerStatsRoutes.js";
+import sellerRoutes from "./routes/sellerRoutes.js";
+import trendingRoutes from "./routes/trending.routes.js";
+  
+
+
 
 // MODELS
 import Message from "./models/Message.js";
@@ -104,6 +110,11 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminMessageRoutes);
 app.use("/api/admin", adminAnalyticsRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/sellers", sellerStatsRoutes);
+app.use("/api/sellers", sellerRoutes);
+app.use("/api/trending", trendingRoutes); // 👈 here
+
+
 
 app.get("/", (req, res) => res.send("🔥 Alinafe + Zitheke API Running"));
 

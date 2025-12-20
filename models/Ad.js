@@ -107,6 +107,23 @@ const adSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+
+    /* ===========================
+   🌍 GEO LOCATION (FOR NEARBY / TRENDING)
+=========================== */
+geo: {
+   type: {
+     type: String,
+     enum: ["Point"],
+     default: undefined
+   },
+   coordinates: {
+     type: [Number], // [lng, lat]
+     default: undefined
+   }
+ },
+ 
+ 
     deliveryAvailable: {
       type: Boolean,
       default: false,
@@ -242,5 +259,8 @@ const adSchema = new mongoose.Schema(
 adSchema.index({ title: "text", description: "text" });
 adSchema.index({ category: 1, city: 1, price: 1 });
 adSchema.index({ ownerUid: 1, createdAt: -1 });
+// 🌍 Geo index for nearby search
+adSchema.index({ geo: "2dsphere" });
+
 
 export default mongoose.model("Ad", adSchema);

@@ -94,7 +94,7 @@ export const getAdminStats = async (req, res) => {
       Sold: soldAds,
     };
 
-    // ⚡ 5. TOP CATEGORY & TOP LOCATION (FROM ADS)
+    // ⚡ 5. TOP CATEGORY & TOP LOCATION
     const [topCategoryAgg, topLocationAgg, mostReportedCategoryAgg] =
       await Promise.all([
         Ad.aggregate([
@@ -139,11 +139,13 @@ export const getAdminStats = async (req, res) => {
 
     const topCategory = topCategoryAgg[0]?._id || "—";
     const topLocation =
-      topLocationAgg[0]?._id?.charAt(0).toUpperCase() +
-        topLocationAgg[0]?._id?.slice(1) || "—";
+      topLocationAgg[0]?._id
+        ? topLocationAgg[0]._id.charAt(0).toUpperCase() +
+          topLocationAgg[0]._id.slice(1)
+        : "—";
     const mostReportedCategory = mostReportedCategoryAgg[0]?._id || "—";
 
-    // ⚡ 6. CATEGORY INSIGHTS (AVG PRICE + ADS + REPORTS)
+    // ⚡ 6. CATEGORY INSIGHTS
     const [categorySummary, reportedCategories, engagementByCategory] =
       await Promise.all([
         Ad.aggregate([
@@ -220,9 +222,43 @@ export const getAdminStats = async (req, res) => {
         },
       },
       { $sort: { count: -1 } },
-      { $limit: 6 }
+      { $limit: 6 },
     ]);
-    
+
+    // ⚡ 7. TOP ACTIVE SELLERS (NEW FEATURE)
+   // ⚡ 7. TOP ACTIVE SELLERS (NEW FEATURE)
+const topActiveSellers = await User.aggregate([
+  {
+    $lookup: {
+      from: "ads",
+      localField: "uid",
+      foreignField: "ownerUid",
+      as: "ads",
+    },
+  },
+  {
+    $addFields: {
+      totalAdsPosted: { $size: "$ads" },
+      memberSince: "$createdAt",
+      isActiveSeller: {
+        $cond: [{ $gt: [{ $size: "$ads" }, 0] }, true, false],
+      },
+    },
+  },
+  {
+    $project: {
+      uid: 1,
+      name: 1,
+      email: 1,
+      memberSince: 1,
+      totalAdsPosted: 1,
+      isActiveSeller: 1,
+    },
+  },
+  { $sort: { totalAdsPosted: -1 } },
+  { $limit: 10 },
+]);
+
 
     // ⚡ 8. ACTIVE & INACTIVE USERS
     const activeUsers = Math.round(totalUsers * 0.75);
@@ -231,7 +267,7 @@ export const getAdminStats = async (req, res) => {
     const engagementRate =
       totalUsers > 0 ? (totalMessages / totalUsers).toFixed(1) : "0";
 
-    // FINAL DATA RESPONSE
+    // FINAL RESPONSE
     const overview = {
       totalUsers,
       totalAds,
@@ -254,6 +290,10 @@ export const getAdminStats = async (req, res) => {
       userCities,
       activeUsers,
       inactiveUsers,
+
+      // 🆕 NEW DATA
+      topActiveSellers,
+
       lastUpdated: new Date(),
     };
 
@@ -268,3 +308,6 @@ export const getAdminStats = async (req, res) => {
     });
   }
 };
+
+
+
