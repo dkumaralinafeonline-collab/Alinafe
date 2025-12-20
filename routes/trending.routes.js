@@ -1,6 +1,6 @@
 // src/routes/trending.routes.js
 import express from "express";
-import { getTrendingAds } from "../controllers/trending.controller.js";
+import { getTrendingAds } from "../Controllers/trending.controller.js";
 import { validate } from "../middlewares/validate.js";
 import { trendingQuerySchema } from "../middlewares/trending.schema.js";
 
