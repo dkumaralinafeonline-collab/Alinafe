@@ -84,14 +84,41 @@ const adSchema = new mongoose.Schema(
     /* ===========================
        🖼️ MEDIA
     =========================== */
-    images: {
-      type: [String],
-      default: [],
-    },
-    videoUrl: {
-      type: String,
-      default: "",
-    },
+ /* ===========================
+   🖼️ MEDIA (Images + Video)
+=========================== */
+images: {
+  type: [String],
+  default: [],
+},
+video: {
+  url: {
+    type: String,
+    default: "",
+  },
+  thumbnail: {
+    type: String,
+    default: "",
+  },
+  duration: {
+    type: Number,
+    default: 0,
+  },
+  size: {
+    type: Number,
+    default: 0,
+  },
+  format: {
+    type: String,
+    default: "",
+  },
+  publicId: {
+    type: String,
+    default: "",
+  },
+},
+
+
 
     /* ===========================
        📍 LOCATION
@@ -222,7 +249,7 @@ geo: {
     =========================== */
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected", "Sold", "Deleted", "Active"],
+      enum: ["Pending", "Approved", "Rejected", "Sold"],
       default: "Pending",
       index: true,
     },
@@ -254,13 +281,32 @@ geo: {
 );
 
 /* ===========================
-   🔍 INDEXES (SEARCH / FILTER)
+   🔍 INDEXES (FINAL)
 =========================== */
-adSchema.index({ title: "text", description: "text" });
-adSchema.index({ category: 1, city: 1, price: 1 });
+
+// ✅ ONLY ONE TEXT INDEX
+adSchema.index({
+  title: "text",
+  description: "text",
+  category: "text",
+  subcategory: "text",
+/* ===========================
+   🔑 SEARCH TAGS
+=========================== */
+tags: {
+  type: [String],
+  default: [],
+},
+});
+
+// ✅ FILTER INDEXES
+adSchema.index({ city: 1, status: 1 });
+adSchema.index({ price: 1 });
 adSchema.index({ ownerUid: 1, createdAt: -1 });
-// 🌍 Geo index for nearby search
+
+// ✅ GEO SEARCH
 adSchema.index({ geo: "2dsphere" });
+
 
 
 export default mongoose.model("Ad", adSchema);

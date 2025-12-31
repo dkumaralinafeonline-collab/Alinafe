@@ -1379,40 +1379,208 @@
 
 
 
+// import mongoose from "mongoose";
+// import dotenv from "dotenv";
+// import User from "./models/User.js";
+
+// dotenv.config();
+
+// const MONGO_URI = process.env.MONGO_URI;
+
+// const fixEmptyUserNames = async () => {
+//   try {
+//     await mongoose.connect(MONGO_URI);
+//     console.log("✅ MongoDB Connected");
+
+//     const users = await User.find({ name: "" });
+
+//     console.log(`🔍 Found ${users.length} users with empty name`);
+
+//     for (const user of users) {
+//       const fallbackName = user.email.split("@")[0];
+//       user.name = fallbackName;
+//       await user.save();
+
+//       console.log(`✔ Fixed user: ${user.email} → ${fallbackName}`);
+//     }
+
+//     console.log("🎉 User name fix completed");
+//     process.exit(0);
+//   } catch (err) {
+//     console.error("❌ Error fixing users:", err);
+//     process.exit(1);
+//   }
+// };
+
+// fixEmptyUserNames();
+
+
+
+
+
+
+// // scripts/clearChats.js
+
+// import mongoose from "mongoose";
+// import dotenv from "dotenv";
+
+// import Message from "./models/Message.js";
+// import Conversation from "./models/Conversation.js";
+
+// dotenv.config();
+
+// const run = async () => {
+//   try {
+//     console.log("🔌 Connecting to MongoDB Atlas...");
+
+//     await mongoose.connect(process.env.MONGO_URI, {
+//       useNewUrlParser: true,
+//       useUnifiedTopology: true,
+//     });
+
+//     console.log("✅ MongoDB Connected");
+
+//     // 🔥 DELETE ALL MESSAGES
+//     const msgResult = await Message.deleteMany({});
+//     console.log(`🗑️ Messages deleted: ${msgResult.deletedCount}`);
+
+//     // 🔥 DELETE ALL CONVERSATIONS
+//     const convoResult = await Conversation.deleteMany({});
+//     console.log(`🗑️ Conversations deleted: ${convoResult.deletedCount}`);
+
+//     console.log("✅ ALL CHAT DATA CLEARED SUCCESSFULLY");
+//     process.exit(0);
+//   } catch (err) {
+//     console.error("❌ Error clearing chat data:", err);
+//     process.exit(1);
+//   }
+// };
+
+// run();
+
+
+
+
+
+
+
+// import mongoose from "mongoose";
+// import dotenv from "dotenv";
+// import Category from "./models/Category.js";
+// import Service from "./models/Service.js";
+
+// dotenv.config();
+
+// const seedSearchData = async () => {
+//   try {
+//     await mongoose.connect(process.env.MONGO_URI);
+
+//     // 🔥 CLEAR OLD DATA (safe to re-run)
+//     await Category.deleteMany({});
+//     await Service.deleteMany({});
+
+//     // =========================
+//     // 📂 CATEGORIES
+//     // =========================
+//     await Category.insertMany([
+//       { name: "Cars", slug: "cars", keywords: ["car", "sedan", "suv", "vehicle"] },
+//       { name: "Bikes", slug: "bikes", keywords: ["bike", "motorcycle"] },
+//       { name: "Mobiles", slug: "mobiles", keywords: ["phone", "iphone", "android"] },
+//       { name: "Electronics", slug: "electronics", keywords: ["tv", "laptop", "computer"] },
+//       { name: "Real Estate", slug: "real-estate", keywords: ["house", "flat", "plot"] },
+//       { name: "Jobs", slug: "jobs", keywords: ["job", "vacancy", "hiring"] },
+//       { name: "Services", slug: "services", keywords: ["service", "repair"] },
+//       { name: "Fashion", slug: "fashion", keywords: ["clothes", "shoes"] },
+//       { name: "Pets", slug: "pets", keywords: ["dog", "cat"] },
+//       { name: "Agriculture", slug: "agriculture", keywords: ["farm", "tractor"] },
+//     ]);
+
+//     // =========================
+//     // 🛠 SERVICES
+//     // =========================
+//     await Service.insertMany([
+//       { name: "Carpenter", category: "Services", keywords: ["wood", "furniture"] },
+//       { name: "Plumber", category: "Services", keywords: ["pipe", "water"] },
+//       { name: "Electrician", category: "Services", keywords: ["electric", "wiring"] },
+//       { name: "Taxi Service", category: "Services", keywords: ["car", "cab"] },
+//       { name: "Home Cleaning", category: "Services", keywords: ["cleaning", "house"] },
+//       { name: "CCTV Installation", category: "Services", keywords: ["camera", "security"] },
+//     ]);
+
+//     console.log("✅ Search seed data inserted successfully");
+//     process.exit();
+//   } catch (error) {
+//     console.error("❌ Seed error:", error);
+//     process.exit(1);
+//   }
+// };
+
+// seedSearchData();
+
+
+
 
 import mongoose from "mongoose";
 import dotenv from "dotenv";
-import Ad from "../backend/models/Ad.js";
+import Ad from "./models/Ad.js";
 
 dotenv.config();
 
-const MONGO_URI = process.env.MONGO_URI;
-
-const cleanupInvalidGeo = async () => {
+/* ================================
+   🔄 MIGRATE OLD ADS → ADD TAGS
+================================ */
+const migrateAdTags = async () => {
   try {
-    console.log("🔌 Connecting to MongoDB Atlas...");
-    await mongoose.connect(MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ MongoDB connected");
 
-    console.log("🧹 Cleaning invalid geo fields...");
+    const ads = await Ad.find({});
+    console.log(`📦 Total ads found: ${ads.length}`);
 
-    const result = await Ad.updateMany(
-      {
-        "geo.coordinates": { $exists: false },
-      },
-      {
-        $unset: { geo: "" },
+    let updatedCount = 0;
+
+    for (const ad of ads) {
+      const tagSet = new Set();
+
+      // from title
+      if (ad.title) {
+        ad.title
+          .toLowerCase()
+          .split(" ")
+          .forEach((w) => w.length > 2 && tagSet.add(w));
       }
-    );
 
-    console.log("✅ Cleanup complete");
-    console.log("Matched:", result.matchedCount);
-    console.log("Modified:", result.modifiedCount);
+      // from category & subcategory
+      if (ad.category) tagSet.add(ad.category.toLowerCase());
+      if (ad.subcategory) tagSet.add(ad.subcategory.toLowerCase());
+
+      // preserve existing tags
+      if (Array.isArray(ad.tags)) {
+        ad.tags.forEach((t) => tagSet.add(t.toLowerCase()));
+      }
+
+      const newTags = Array.from(tagSet);
+
+      // only update if tags missing or empty
+      if (!ad.tags || ad.tags.length === 0) {
+        await Ad.updateOne(
+          { _id: ad._id },
+          { $set: { tags: newTags } },
+          { runValidators: false }
+        );
+        updatedCount++;
+      }
+      
+    }
+
+    console.log(`✅ Migration completed`);
+    console.log(`🧠 Ads updated with tags: ${updatedCount}`);
 
     process.exit(0);
   } catch (error) {
-    console.error("❌ Cleanup failed:", error);
+    console.error("❌ Migration error:", error);
     process.exit(1);
   }
 };
 
-cleanupInvalidGeo();
+migrateAdTags();

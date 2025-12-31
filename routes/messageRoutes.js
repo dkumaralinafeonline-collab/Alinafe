@@ -1,44 +1,50 @@
-// routes/messageRoutes.js
 import express from "express";
+import authMiddleware from "../middlewares/authMiddleware.js";
+
 import {
   getMessagesByConversation,
   saveMessage,
-  markDelivered,
-  markSeen,
   deleteForEveryone,
-  deleteForMe
+  deleteForMe,
 } from "../Controllers/messageController.js";
 
 const router = express.Router();
 
 /* ============================================================
-   🔹 Get messages (pagination)
+   🔹 GET MESSAGES (BY CONVERSATION)
 ============================================================ */
-router.get("/:conversationId", getMessagesByConversation);
+router.get(
+  "/:conversationId",
+  authMiddleware,
+  getMessagesByConversation
+);
 
 /* ============================================================
-   🔹 Send text / media / reply / forward
+   🔹 SEND MESSAGE (TEXT / MEDIA)
 ============================================================ */
-router.post("/", saveMessage);
+router.post(
+  "/",
+  authMiddleware,
+  saveMessage
+);
 
 /* ============================================================
-   🔹 Mark delivered
+   🔹 DELETE MESSAGE FOR EVERYONE
+   (Sender only — controller validates)
 ============================================================ */
-router.put("/delivered/:messageId", markDelivered);
+router.put(
+  "/delete-everyone/:messageId",
+  authMiddleware,
+  deleteForEveryone
+);
 
 /* ============================================================
-   🔹 Mark seen
+   🔹 DELETE MESSAGE FOR ME ONLY
 ============================================================ */
-router.put("/seen/:conversationId/:userId", markSeen);
-
-/* ============================================================
-   🔹 Delete for everyone
-============================================================ */
-router.put("/delete-everyone/:messageId", deleteForEveryone);
-
-/* ============================================================
-   🔹 Delete for me only
-============================================================ */
-router.put("/delete-me/:messageId/:uid", deleteForMe);
+router.put(
+  "/delete-me/:messageId",
+  authMiddleware,
+  deleteForMe
+);
 
 export default router;

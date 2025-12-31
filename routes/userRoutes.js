@@ -1,5 +1,9 @@
-// routes/userRoutes.js
 import express from "express";
+
+// 🔐 AUTH MIDDLEWARE
+import authMiddleware from "../middlewares/authMiddleware.js";
+
+// 👤 CONTROLLERS
 import {
   registerUser,
   getUserProfile,
@@ -8,13 +12,31 @@ import {
 
 const router = express.Router();
 
-// Register / Sync Firebase User
-router.post("/register", registerUser);
+/* =====================================================
+   🧾 REGISTER / SYNC USER (PUBLIC)
+   ❌ authMiddleware YAHAN NAHI AAYEGA
+===================================================== */
+router.post(
+  "/register",
+  registerUser
+);
 
-// Get Profile by Firebase UID
-router.get("/:uid", getUserProfile);
+/* =====================================================
+   👤 GET USER PROFILE (PRIVATE)
+===================================================== */
+router.get(
+  "/:uid",
+  authMiddleware,
+  getUserProfile
+);
 
-// Update Profile
-router.put("/:uid", updateUserProfile);
+/* =====================================================
+   ✏️ UPDATE USER PROFILE (PRIVATE)
+===================================================== */
+router.put(
+  "/:uid",
+  authMiddleware,
+  updateUserProfile
+);
 
 export default router;

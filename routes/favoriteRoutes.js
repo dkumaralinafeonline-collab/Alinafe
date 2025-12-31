@@ -1,12 +1,37 @@
 import express from "express";
-import { toggleFavorite, getFavorites } from "../Controllers/favoriteController.js";
+
+// 🔐 AUTH MIDDLEWARE
+import authMiddleware from "../middlewares/authMiddleware.js";
+
+// ❤️ FAVORITES CONTROLLER
+import {
+  toggleFavorite,
+  getFavorites,
+} from "../Controllers/favoriteController.js";
 
 const router = express.Router();
 
-// 🟢 Toggle favorite (add/remove)
-router.put("/toggle", toggleFavorite);
+/* =====================================================
+   ❤️ TOGGLE FAVORITE (ADD / REMOVE)
+   🔐 LOGIN REQUIRED
+   PUT /api/favorites/toggle
+===================================================== */
+router.put(
+  "/toggle",
+  authMiddleware,
+  toggleFavorite
+);
 
-// 🟣 Get user's favorites list
-router.get("/:userId", getFavorites);
+/* =====================================================
+   🧾 GET LOGGED-IN USER FAVORITES
+   🔐 LOGIN REQUIRED
+   GET /api/favorites/:userId
+   ⚠️ userId verified via JWT inside controller
+===================================================== */
+router.get(
+  "/:userId",
+  authMiddleware,
+  getFavorites
+);
 
 export default router;

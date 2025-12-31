@@ -13,9 +13,18 @@ import {
   searchAds,
 } from "../Controllers/adController.js";
 
+// 🔐 AUTH MIDDLEWARE
+import authMiddleware from "../middlewares/authMiddleware.js";
+
+// 🔐 OWNER / ADMIN PERMISSION MIDDLEWARE
+import adPermissionMiddleware from "../middlewares/adPermissionMiddleware.js";
+
 // 🔹 Cloudinary Integration
 import { v2 as cloudinary } from "cloudinary";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
+
+// 🔥 Multer Error Handler
+import multerErrorHandler from "../middlewares/multerErrorHandler.js";
 
 const router = express.Router();
 
@@ -29,55 +38,138 @@ cloudinary.config({
 });
 
 /* =============================
-   📦 MULTER STORAGE ON CLOUDINARY
+   📦 CLOUDINARY STORAGE
 ============================= */
 const storage = new CloudinaryStorage({
+  
   cloudinary,
-  params: {
-    folder: "zitheke_uploads", // folder name in Cloudinary
-    allowed_formats: ["jpg", "jpeg", "png", "webp", "avif"],
-    transformation: [{ quality: "auto", fetch_format: "auto" }],
+  params: async (req, file) => {
+    // 🎥 VIDEO CONFIG
+    if (file.mimetype.startsWith("video")) {
+      return {
+        folder: "alinafe/videos",
+        resource_type: "video",
+        allowed_formats: ["mp4", "webm", "mov"],
+      };
+    }
+
+    // 🖼️ IMAGE CONFIG
+    return {
+      folder: "alinafe/images",
+      allowed_formats: ["jpg", "jpeg", "png", "webp", "avif"],
+      transformation: [{ quality: "auto", fetch_format: "auto" }],
+    };
   },
 });
 
+/* =============================
+   📤 MULTER CONFIG
+============================= */
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB per image
+  limits: {
+    fileSize: 30 * 1024 * 1024, // ⛔ 30MB
+  },
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype.startsWith("image/") ||
+      file.mimetype.startsWith("video/")
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image and video files are allowed"), false);
+    }
+  },
 });
 
 /* =============================
         🔹 ROUTES START
 ============================= */
 
-// 🟢 CREATE New Ad (default Pending status, up to 5 images)
-router.post("/create", upload.array("images", 5), createAd);
+/* =================================================
+   🟢 CREATE AD (LOGIN REQUIRED)
+================================================= */
+router.post(
+  "/create",
+  authMiddleware,
+  upload.fields([
+    { name: "images", maxCount: 5 },
+    { name: "video", maxCount: 1 },
+  ]),
+  multerErrorHandler,
+  createAd
+);
 
-// 👤 Get Ads created by specific user
-router.get("/user/:uid", getUserAds);
+/* =================================================
+   👤 GET LOGGED-IN USER ADS
+================================================= */
+router.get("/user/:uid", authMiddleware, getUserAds);
 
-// 🟣 Get ALL Ads (optionally filtered by category)
-router.get("/", getAllAds);
-
-// 🔍 Get Single Ad by ID
-router.get("/:id", getAdById);
-
-// 🔎 Search Ads (query + location)
+/* =================================================
+   🔎 SEARCH ADS (PUBLIC)
+================================================= */
 router.get("/search/ads", searchAds);
 
-// 👁️ Increment View Count
+/* =================================================
+   🌍 GET ALL APPROVED ADS (PUBLIC)
+================================================= */
+router.get("/", getAllAds);
+
+/* =================================================
+   👁️ INCREMENT VIEW COUNT (PUBLIC)
+================================================= */
 router.put("/:id/view", incrementView);
 
-// ❤️ Update Favorite Count
-router.put("/:id/favorite", updateFavoriteCount);
+/* =================================================
+   ❤️ UPDATE FAVORITE COUNT (LOGIN)
+================================================= */
+router.put(
+  "/:id/favorite",
+  authMiddleware,
+  updateFavoriteCount
+);
 
-// 💰 Mark Ad as SOLD
-router.put("/:id/sold", markAsSold);
+/* =================================================
+   💰 MARK AD AS SOLD (OWNER / ADMIN)
+================================================= */
+router.put(
+  "/:id/sold",
+  authMiddleware,
+  adPermissionMiddleware,
+  markAsSold
+);
 
-// ✏️ Update Ad Details
-router.put("/:id", updateAd);
+/* =================================================
+   ✏️ UPDATE AD (OWNER / ADMIN)
+================================================= */
+router.put(
+  "/:id",
+  authMiddleware,
+  adPermissionMiddleware,
+  upload.fields([
+    { name: "images", maxCount: 5 },
+    { name: "video", maxCount: 1 },
+  ]),
+  multerErrorHandler,
+  updateAd
+);
 
-// ❌ Delete Ad
-router.delete("/:id", deleteAd);
+/* =================================================
+   ❌ DELETE AD (OWNER / ADMIN)
+================================================= */
+router.delete(
+  "/:id",
+  authMiddleware,
+  adPermissionMiddleware,
+  deleteAd
+);
+
+/* =================================================
+   🟣 GET SINGLE AD BY ID (PUBLIC)
+   🔒 REGEX GUARD — ALWAYS LAST
+================================================= */
+router.get("/:id", getAdById);
+
 
 /* =============================
         🔹 ROUTES END

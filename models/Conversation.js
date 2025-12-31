@@ -2,18 +2,39 @@ import mongoose from "mongoose";
 
 const ConversationSchema = new mongoose.Schema(
   {
+    /* =====================================
+       CHAT PARTICIPANTS
+    ===================================== */
     participants: {
-      type: [String], // [senderId, receiverId]
+      type: [String], // [senderId, receiverId] (Firebase UID)
       required: true,
+      index: true,
+    },
+
+    /* =====================================
+       🔥 AD CONTEXT (MAIN FIX)
+    ===================================== */
+    adId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Ad",
+      default: null,
       index: true,
     },
 
     productTitle: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
 
+    productImage: {
+      type: String,
+      default: "",
+    },
+
+    /* =====================================
+       LAST MESSAGE PREVIEW
+    ===================================== */
     lastMessage: {
       type: String,
       default: "",
@@ -24,34 +45,40 @@ const ConversationSchema = new mongoose.Schema(
       default: "",
     },
 
-    // 🔥 Better unread count format (Map is safest)
+    /* =====================================
+       🔔 UNREAD COUNTS (MAP = SAFEST)
+    ===================================== */
     unreadCounts: {
       type: Map,
       of: Number,
       default: {},
     },
 
-    // 🔥 sorting field for sidebar
+    /* =====================================
+       SORTING (SIDEBAR ORDER)
+    ===================================== */
     updatedAtSort: {
       type: Date,
       default: Date.now,
       index: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true, // createdAt + updatedAt
+  }
 );
 
 /* ================================================
-   INDEXES (Optimized for Chat Performance)
+   INDEXES (PERFORMANCE OPTIMIZED)
 ================================================ */
 
-// ❌ remove unique index – wrong for chat apps
-// ConversationSchema.index({ participants: 1, productTitle: 1 }, { unique: true });
-
-// 🔥 keep searchable index for participant-based queries
+// 🔥 Fast lookup for user chats
 ConversationSchema.index({ participants: 1 });
 
-// 🔥 sort index
+// 🔥 Sorting for sidebar
 ConversationSchema.index({ updatedAtSort: -1 });
+
+// 🔥 Same users can chat on multiple ads
+ConversationSchema.index({ participants: 1, adId: 1 });
 
 export default mongoose.model("Conversation", ConversationSchema);

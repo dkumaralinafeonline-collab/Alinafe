@@ -4,7 +4,7 @@ import User from "../models/User.js";
 import Message from "../models/Message.js";
 
 /* ============================================
-   1️⃣ Get All Conversations (for Admin View)
+   1️⃣ Get All Conversations (ADMIN ONLY)
    GET /api/admin/conversations
 ============================================ */
 export const getAllConversations = async (req, res) => {
@@ -13,9 +13,17 @@ export const getAllConversations = async (req, res) => {
       .sort({ updatedAtSort: -1 })
       .lean();
 
-    // Populate user info manually
+    if (!conversations.length) {
+      return res.json([]);
+    }
+
+    /* ----------------------------------------
+       Collect unique participant UIDs
+    ---------------------------------------- */
     const userIds = [
-      ...new Set(conversations.flatMap((c) => c.participants)),
+      ...new Set(
+        conversations.flatMap((c) => c.participants || [])
+      ),
     ];
 
     const users = await User.find({ uid: { $in: userIds } })
@@ -37,43 +45,63 @@ export const getAllConversations = async (req, res) => {
       ])
     );
 
-    const data = conversations.map((conv) => ({
-      _id: conv._id,
-      userA: userMap[conv.participants[0]] || { name: "User" },
-      userB: userMap[conv.participants[1]] || { name: "User" },
-      lastMessage: conv.lastMessage || "",
-      updatedAt: conv.updatedAtSort || conv.updatedAt,
-    }));
+    const data = conversations.map((conv) => {
+      const [userAId, userBId] = conv.participants || [];
+
+      return {
+        _id: conv._id,
+        userA: userMap[userAId] || { name: "User" },
+        userB: userMap[userBId] || { name: "User" },
+        lastMessage: conv.lastMessage || "",
+        updatedAt: conv.updatedAtSort || conv.updatedAt,
+      };
+    });
 
     res.json(data);
   } catch (error) {
     console.error("❌ Error fetching admin conversations:", error);
-    res.status(500).json({ error: "Error fetching admin conversations" });
+    res.status(500).json({
+      error: "Error fetching admin conversations",
+    });
   }
 };
 
 /* ============================================
-   2️⃣ Get Messages of a Specific Conversation
+   2️⃣ Get Messages of a Conversation (ADMIN)
    GET /api/admin/messages/:conversationId
 ============================================ */
 export const getMessagesForAdmin = async (req, res) => {
-    const { conversationId } = req.params;
-  
-    try {
-      // 🧠 Try both formats (ObjectId or String)
-      const msgs = await Message.find({
-        $or: [
-          { conversationId: new mongoose.Types.ObjectId(conversationId) },
-          { conversationId: conversationId },
-        ],
-      })
-        .sort({ createdAt: 1 })
-        .lean();
-  
-      console.log(`📩 Found ${msgs.length} messages for conversation ${conversationId}`);
-      res.json(msgs);
-    } catch (error) {
-      console.error("❌ Error fetching admin messages:", error);
-      res.status(500).json({ error: "Error fetching admin messages" });
+  const { conversationId } = req.params;
+
+  try {
+    if (!conversationId) {
+      return res
+        .status(400)
+        .json({ error: "Conversation ID required" });
     }
-  };
+
+    const query = mongoose.Types.ObjectId.isValid(conversationId)
+      ? {
+          $or: [
+            { conversationId: new mongoose.Types.ObjectId(conversationId) },
+            { conversationId },
+          ],
+        }
+      : { conversationId };
+
+    const msgs = await Message.find(query)
+      .sort({ createdAt: 1 })
+      .lean();
+
+    console.log(
+      `📩 Admin fetched ${msgs.length} messages for conversation ${conversationId}`
+    );
+
+    res.json(msgs);
+  } catch (error) {
+    console.error("❌ Error fetching admin messages:", error);
+    res.status(500).json({
+      error: "Error fetching admin messages",
+    });
+  }
+};

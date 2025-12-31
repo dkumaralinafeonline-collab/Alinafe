@@ -5,10 +5,15 @@ import User from "../models/User.js";
 
 /* =====================================================
    🟢 GET /api/conversations/:uid
-   → Fetch all chats for Sidebar (Optimized + Safe)
+   → Fetch all chats for Sidebar (FULL DATA)
 ===================================================== */
 export const getUserConversations = async (req, res) => {
   const { uid } = req.params;
+
+  // 🔐 OWNERSHIP CHECK
+  if (req.user.uid !== uid) {
+    return res.status(403).json({ message: "Access denied" });
+  }
 
   try {
     const convos = await Conversation.find({
@@ -22,17 +27,29 @@ export const getUserConversations = async (req, res) => {
       convos.map(async (c) => {
         const partnerId = c.participants.find((p) => p !== uid);
 
-        // Fetch partner info
+        // 👤 FETCH PARTNER
         const partner = await User.findOne({ uid: partnerId }).lean();
 
-        // Fetch last message
+        // ✅ SAFE PARTNER OBJECT
+        const safePartner = {
+          uid: partnerId,
+          name: partner?.name || "User",
+          email: partner?.email || "",
+          photoURL:
+            partner?.photoURL && partner.photoURL.trim() !== ""
+              ? partner.photoURL
+              : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+          lastSeen: partner?.lastLogin || null,
+        };
+
+        // 💬 LAST MESSAGE
         const lastMessageDoc = await Message.findOne({
           conversationId: c._id,
         })
           .sort({ createdAt: -1 })
           .lean();
 
-        // 🟢 Safe unreadCount (supports BOTH Map & Object)
+        // 🔔 UNREAD COUNT (Map + Object safe)
         const unreadCount =
           typeof c.unreadCounts?.get === "function"
             ? c.unreadCounts.get(uid) || 0
@@ -41,17 +58,22 @@ export const getUserConversations = async (req, res) => {
         return {
           conversationId: c._id,
 
-          withUserId: partnerId,
-          withUserName: partner?.name || "User",
-          withUserEmail: partner?.email || "",
-          withUserPhoto: partner?.photoURL || "",
-          lastSeen: partner?.lastSeen || null,
+          // 👤 USER INFO (IMPORTANT)
+          withUserId: safePartner.uid,
+          withUserName: safePartner.name,
+          withUserEmail: safePartner.email,
+          withUserPhoto: safePartner.photoURL,
+          lastSeen: safePartner.lastSeen,
 
-          productTitle: c.productTitle,
+          // 🧾 AD CONTEXT
+          adId: c.adId || null,
+          productTitle: c.productTitle || "",
+          productImage: c.productImage || "",
 
+          // 💬 LAST MESSAGE PREVIEW
           lastMessage: lastMessageDoc?.message || "",
           lastMessageType: lastMessageDoc?.type || "text",
-          lastSenderId: lastMessageDoc?.senderId,
+          lastSenderId: lastMessageDoc?.senderId || null,
           lastMessageAt: lastMessageDoc?.createdAt || c.updatedAtSort,
 
           unreadCount,
@@ -67,57 +89,142 @@ export const getUserConversations = async (req, res) => {
 };
 
 /* =====================================================
-   🟢 PUT /api/conversations/:conversationId/mark-read/:userId
-   → Reset unread count + mark messages as read
+   🟢 GET /api/conversations/preview/:uid
+   → Lightweight preview (Dashboard)
 ===================================================== */
-export const markConversationRead = async (req, res) => {
-  const { conversationId, userId } = req.params;
+export const getConversationPreview = async (req, res) => {
+  const { uid } = req.params;
+
+  if (req.user.uid !== uid) {
+    return res.status(403).json({ message: "Access denied" });
+  }
 
   try {
+    const convos = await Conversation.find({
+      participants: { $in: [uid] },
+    })
+      .sort({ updatedAtSort: -1 })
+      .limit(5)
+      .lean();
+
+    const preview = await Promise.all(
+      convos.map(async (c) => {
+        const partnerId = c.participants.find((p) => p !== uid);
+
+        // 👤 FETCH PARTNER (MISSING BUG FIXED HERE)
+        const partner = await User.findOne(
+          { uid: partnerId },
+          { name: 1, photoURL: 1 }
+        ).lean();
+
+        // ✅ SAFE PARTNER
+        const safePartner = {
+          name: partner?.name || "User",
+          photoURL:
+            partner?.photoURL && partner.photoURL.trim() !== ""
+              ? partner.photoURL
+              : "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+        };
+
+        const unreadCount =
+          typeof c.unreadCounts?.get === "function"
+            ? c.unreadCounts.get(uid) || 0
+            : c.unreadCounts?.[uid] || 0;
+
+        return {
+          conversationId: c._id,
+
+          withUserId: partnerId,
+          withUserName: safePartner.name,
+          withUserPhoto: safePartner.photoURL,
+
+          // 🧾 AD CONTEXT
+          adId: c.adId || null,
+          productTitle: c.productTitle || "",
+          productImage: c.productImage || "",
+
+          lastMessage: c.lastMessage || "",
+          lastSenderId: c.lastSenderId || null,
+          lastMessageAt: c.updatedAtSort,
+
+          unreadCount,
+        };
+      })
+    );
+
+    res.json(preview);
+  } catch (err) {
+    console.error("❌ Error fetching conversation preview:", err);
+    res.status(500).json({ error: "Error fetching chat preview" });
+  }
+};
+
+/* =====================================================
+   🟢 PUT /api/conversations/:conversationId/mark-read
+===================================================== */
+export const markConversationRead = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const uid = req.user.uid;
+
+    if (!uid) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
     await Conversation.updateOne(
       { _id: conversationId },
-      { $set: { [`unreadCounts.${userId}`]: 0 } }
+      { $set: { [`unreadCounts.${uid}`]: 0 } }
     );
 
     await Message.updateMany(
-      { conversationId, receiverId: userId, isRead: false },
-      { isRead: true, readAt: new Date() }
+      {
+        conversationId,
+        receiverId: uid,
+        isRead: false,
+      },
+      {
+        isRead: true,
+        readAt: new Date(),
+      }
     );
 
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Error marking read:", err);
-    res.status(500).json({ error: "Error marking conversation read" });
+    console.error("❌ Error marking conversation read:", err);
+    res.status(500).json({ message: "Error marking conversation read" });
   }
 };
 
 /* =====================================================
    🟢 POST /api/conversations/start
-   → Start or get conversation
 ===================================================== */
 export const startConversation = async (req, res) => {
   try {
-    const { senderId, receiverId, productTitle } = req.body;
+    const { senderId, receiverId, adId, adTitle, adImage } = req.body;
 
-    if (!senderId || !receiverId || !productTitle) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (req.user.uid !== senderId) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     let convo = await Conversation.findOne({
       participants: { $all: [senderId, receiverId] },
-      productTitle,
+      adId: adId || null,
     });
 
     if (!convo) {
       convo = await Conversation.create({
         participants: [senderId, receiverId],
-        productTitle,
+
+        adId: adId || null,
+        productTitle: adTitle || "Listing",
+        productImage: adImage || "",
+
         unreadCounts: {
           [senderId]: 0,
           [receiverId]: 0,
         },
+
         updatedAtSort: new Date(),
-        lastMessage: "",
       });
     }
 
@@ -129,12 +236,22 @@ export const startConversation = async (req, res) => {
 };
 
 /* =====================================================
-   🟢 DELETE (HARD DELETE)
+   🟢 DELETE /api/conversations/:conversationId
 ===================================================== */
 export const deleteConversationHard = async (req, res) => {
-  const { conversationId } = req.params;
-
   try {
+    const { conversationId } = req.params;
+
+    const convo = await Conversation.findById(conversationId);
+
+    if (!convo) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    if (!convo.participants.includes(req.user.uid)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     await Message.deleteMany({ conversationId });
     await Conversation.deleteOne({ _id: conversationId });
 

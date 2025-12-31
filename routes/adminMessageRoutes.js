@@ -1,4 +1,10 @@
 import express from "express";
+
+// 🔐 Middlewares
+import authMiddleware from "../middlewares/authMiddleware.js";
+import roleMiddleware from "../middlewares/roleMiddleware.js";
+
+// 💬 Controllers
 import {
   getAllConversations,
   getMessagesForAdmin,
@@ -6,10 +12,19 @@ import {
 
 const router = express.Router();
 
-// ✅ Get all conversations for admin
+/* =====================================================
+   🔐 ADMIN ACCESS ONLY
+===================================================== */
+router.use(authMiddleware, roleMiddleware("admin"));
+
+/* =====================================================
+   💬 ADMIN CHAT MONITORING
+===================================================== */
+
+// ✅ Get all conversations (platform wide)
 router.get("/conversations", getAllConversations);
 
-// ✅ Get all messages of one conversation
+// ✅ Get messages of a specific conversation
 router.get("/messages/:conversationId", getMessagesForAdmin);
 
 export default router;

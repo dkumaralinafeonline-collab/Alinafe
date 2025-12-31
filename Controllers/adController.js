@@ -13,18 +13,8 @@ cloudinary.config({
 });
 
 /* ================================
-// Controllers/adController.js
-import Ad from "../models/Ad.js";
-import User from "../models/User.js";
-
-// Controllers/adController.js
-import Ad from "../models/Ad.js";
-import User from "../models/User.js";
-
-/* ================================
    🟢 CREATE AD (Pending by default)
 ================================ */
-
 export const createAd = async (req, res) => {
   try {
     // 1️⃣ Clone body (DO NOT destructure)
@@ -42,11 +32,7 @@ export const createAd = async (req, res) => {
 
     // 3️⃣ Remove empty values (SAFE CLEANUP)
     Object.keys(body).forEach((key) => {
-      if (
-        body[key] === "" ||
-        body[key] === null ||
-        body[key] === undefined
-      ) {
+      if (body[key] === "" || body[key] === null || body[key] === undefined) {
         delete body[key];
       }
     });
@@ -66,23 +52,93 @@ export const createAd = async (req, res) => {
       body.negotiable === "true" || body.negotiable === true;
 
     body.deliveryAvailable =
-      body.deliveryAvailable === "true" ||
-      body.deliveryAvailable === true;
+      body.deliveryAvailable === "true" || body.deliveryAvailable === true;
 
     // 6️⃣ Images from Cloudinary / Multer
-    const imagePaths = req.files
-      ? req.files.map((f) => f.path || f.secure_url)
+    const imagePaths = req.files?.images
+      ? req.files.images.map((f) => f.path || f.secure_url)
       : [];
 
-    // 7️⃣ Create Ad
+    /* ==================================================
+       🔎 6.5️⃣ AUTO TAG GENERATION (ROOT SEARCH FIX)
+       - category
+       - subcategory
+       - title keywords
+       - existing tags (if any)
+    ================================================== */
+    const autoTags = new Set();
+
+    // from title
+    if (body.title) {
+      body.title
+        .toLowerCase()
+        .split(" ")
+        .forEach((word) => {
+          if (word.length > 2) autoTags.add(word);
+        });
+    }
+
+    // from category & subcategory
+    if (body.category) autoTags.add(body.category.toLowerCase());
+    if (body.subcategory) autoTags.add(body.subcategory.toLowerCase());
+
+    // preserve incoming tags if any
+    if (Array.isArray(body.tags)) {
+      body.tags.forEach((t) => autoTags.add(t.toLowerCase()));
+    }
+
+    body.tags = Array.from(autoTags);
+
+    // 7️⃣ 🎥 VIDEO UPLOAD (OPTIONAL — MAX 30 SEC)
+    let videoData = {};
+
+    if (req.files?.video?.[0]) {
+      const videoFile = req.files.video[0];
+
+      const uploadedVideo = await cloudinary.uploader.upload(videoFile.path, {
+        resource_type: "video",
+        folder: "alinafe/videos",
+      });
+
+      // ✅ Thumbnail (Cloudinary way) - format safe
+      const thumbnailUrl = cloudinary.url(uploadedVideo.public_id, {
+        resource_type: "video",
+        format: "jpg",
+      });
+
+      // ⛔ HARD LIMIT: 30 seconds (cleanup too)
+      if (uploadedVideo.duration > 30) {
+        // ✅ delete uploaded video to avoid junk
+        await cloudinary.uploader.destroy(uploadedVideo.public_id, {
+          resource_type: "video",
+        });
+
+        return res.status(400).json({
+          success: false,
+          message: "Video duration must be 30 seconds or less",
+        });
+      }
+
+      videoData = {
+        url: uploadedVideo.secure_url,
+        thumbnail: thumbnailUrl,
+        duration: uploadedVideo.duration,
+        size: uploadedVideo.bytes,
+        format: uploadedVideo.format,
+        publicId: uploadedVideo.public_id,
+      };
+    }
+
+    // 8️⃣ Create Ad
     const newAd = await Ad.create({
       ...body,
       images: imagePaths,
+      video: videoData,
       status: "Pending",
       reportReason: "",
     });
 
-    // 8️⃣ Update user city / location (safe)
+    // 9️⃣ Update user city / location (safe)
     const updateFields = {};
 
     if (body.city && body.city.trim() !== "") {
@@ -94,13 +150,10 @@ export const createAd = async (req, res) => {
     }
 
     if (Object.keys(updateFields).length > 0) {
-      await User.updateOne(
-        { uid: body.ownerUid },
-        { $set: updateFields }
-      );
+      await User.updateOne({ uid: body.ownerUid }, { $set: updateFields });
     }
 
-    // 9️⃣ Final response
+    // 🔟 Final response
     return res.status(201).json({
       success: true,
       message: "Ad submitted successfully and is pending admin approval.",
@@ -115,7 +168,6 @@ export const createAd = async (req, res) => {
     });
   }
 };
-
 
 
 /* ================================
@@ -137,23 +189,69 @@ export const getUserAds = async (req, res) => {
 ================================ */
 export const getAllAds = async (req, res) => {
   try {
-    const filters = { status: "Approved" }; // ✅ default filter: only approved ads
+    let {
+      q = "",
+      location = "",
+      category,
+      page = 1,
+      limit = 20,
+    } = req.query;
 
-    // 🏷️ Optional filters
-    if (req.query.category) filters.category = req.query.category;
-    if (req.query.city) filters.city = req.query.city;
+    q = q.trim();
+    location = location.trim();
 
-    // ⚠️ Prevent external overriding of status filter
-    // so even if someone adds ?status=Pending in URL, ignore it
+    const filters = {
+      status: { $in: ["Approved", "Active"] },
+    };
 
-    const ads = await Ad.find(filters).sort({ createdAt: -1 });
+    if (location) {
+      filters.city = { $regex: `^${location}`, $options: "i" };
+    }
 
-    res.status(200).json(ads);
-  } catch (error) {
-    console.error("❌ Error fetching ads:", error);
-    res
-      .status(500)
-      .json({ message: "Server error while fetching ads", error: error.message });
+    if (category) {
+      filters.category = category;
+    }
+
+    if (q) {
+      filters.$or = [
+        { title: { $regex: q, $options: "i" } },
+        { description: { $regex: q, $options: "i" } },
+        { category: { $regex: q, $options: "i" } },
+        { subcategory: { $regex: q, $options: "i" } },
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [ads, total] = await Promise.all([
+      Ad.find(filters)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select(
+          "title description price images category subcategory " +
+            "city location " +
+            "status views favouritesCount negotiable featured createdAt " +
+            "condition brand year mileage warranty " +
+            "bedrooms bathrooms area " +
+            "salary quantity " +
+            "size color type " +
+            "age breed gender ageGroup " +
+            "fileType accessType"
+        ),
+      Ad.countDocuments(filters),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      ads,
+    });
+  } catch (err) {
+    console.error("ADS FETCH ERROR:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch ads" });
   }
 };
 
@@ -163,14 +261,89 @@ export const getAllAds = async (req, res) => {
 ================================ */
 export const updateAd = async (req, res) => {
   try {
-    const updates = req.body;
+    const updates = { ...req.body };
 
-    // ✅ Replace image paths with Cloudinary URLs if uploaded
-    const imagePaths = req.files ? req.files.map((f) => f.path || f.secure_url) : [];
+    // 🖼️ Update images
+    const imagePaths = req.files?.images
+      ? req.files.images.map((f) => f.path || f.secure_url)
+      : [];
+
     if (imagePaths.length > 0) updates.images = imagePaths;
 
-    const updatedAd = await Ad.findByIdAndUpdate(req.params.id, updates, { new: true });
-    if (!updatedAd) return res.status(404).json({ message: "Ad not found" });
+    /* ==================================================
+       🔁 AUTO TAG UPDATE (IF TITLE / CATEGORY / SUBCATEGORY CHANGED)
+    ================================================== */
+    const updatedTags = new Set();
+
+    // from title
+    if (updates.title) {
+      updates.title
+        .toLowerCase()
+        .split(" ")
+        .forEach((word) => {
+          if (word.length > 2) updatedTags.add(word);
+        });
+    }
+
+    // from category & subcategory
+    if (updates.category) updatedTags.add(updates.category.toLowerCase());
+    if (updates.subcategory)
+      updatedTags.add(updates.subcategory.toLowerCase());
+
+    // preserve manual tags if any
+    if (Array.isArray(updates.tags)) {
+      updates.tags.forEach((t) => updatedTags.add(t.toLowerCase()));
+    }
+
+    if (updatedTags.size > 0) {
+      updates.tags = Array.from(updatedTags);
+    }
+
+    // 🎥 Replace video if uploaded
+    if (req.files?.video?.[0]) {
+      const videoFile = req.files.video[0];
+
+      const uploadedVideo = await cloudinary.uploader.upload(videoFile.path, {
+        resource_type: "video",
+        folder: "alinafe/videos",
+      });
+
+      const thumbnailUrl = cloudinary.url(uploadedVideo.public_id, {
+        resource_type: "video",
+        format: "jpg",
+      });
+
+      if (uploadedVideo.duration > 30) {
+        // ✅ delete uploaded video to avoid junk
+        await cloudinary.uploader.destroy(uploadedVideo.public_id, {
+          resource_type: "video",
+        });
+
+        return res.status(400).json({
+          success: false,
+          message: "Video duration must be 30 seconds or less",
+        });
+      }
+
+      updates.video = {
+        url: uploadedVideo.secure_url,
+        thumbnail: thumbnailUrl,
+        duration: uploadedVideo.duration,
+        size: uploadedVideo.bytes,
+        format: uploadedVideo.format,
+        publicId: uploadedVideo.public_id,
+      };
+    }
+
+    const updatedAd = await Ad.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
+    );
+
+    if (!updatedAd) {
+      return res.status(404).json({ message: "Ad not found" });
+    }
 
     res.status(200).json({
       message: "Ad updated successfully",
@@ -182,6 +355,7 @@ export const updateAd = async (req, res) => {
   }
 };
 
+
 /* ================================
    ❌ DELETE AD
 ================================ */
@@ -189,6 +363,13 @@ export const deleteAd = async (req, res) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) return res.status(404).json({ message: "Ad not found" });
+
+    // 🗑️ Delete video from Cloudinary if exists
+    if (ad.video?.publicId) {
+      await cloudinary.uploader.destroy(ad.video.publicId, {
+        resource_type: "video",
+      });
+    }
 
     await ad.deleteOne();
     res.status(200).json({ message: "Ad deleted successfully" });
@@ -216,17 +397,15 @@ export const markAsSold = async (req, res) => {
   }
 };
 
-/* ========================================
+/* ================================
    👁️ INCREMENT AD VIEW COUNT
-======================================== */
-/* 👁️ INCREMENT AD VIEW COUNT */
+================================ */
 export const incrementView = async (req, res) => {
   try {
     const { userId, guestId } = req.body;
     const uniqueViewer = userId || guestId;
     const { id } = req.params;
 
-    // 🧠 Validate Ad ID
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Invalid Ad ID" });
     }
@@ -234,25 +413,18 @@ export const incrementView = async (req, res) => {
     const ad = await Ad.findById(id);
     if (!ad) return res.status(404).json({ message: "Ad not found" });
 
-    // 🧩 Prevent owner's self-view increment
     if (userId && ad.ownerUid === userId) {
       return res.json({ message: "Owner viewed — no increment" });
     }
 
-    // 🧠 Prevent duplicate increments
     if (uniqueViewer && ad.viewedBy.includes(uniqueViewer)) {
-      return res.json({
-        message: "Already viewed by this user",
-        views: ad.views,
-      });
+      return res.json({ message: "Already viewed", views: ad.views });
     }
 
-    // ✅ Increment once per unique viewer
     ad.views = (ad.views || 0) + 1;
     if (uniqueViewer) ad.viewedBy.push(uniqueViewer);
 
     await ad.save();
-
     res.json({ message: "View incremented", views: ad.views });
   } catch (error) {
     console.error("❌ Error updating view count:", error);
@@ -270,6 +442,7 @@ export const changeAdStatus = async (req, res) => {
   try {
     const { status } = req.body;
     const validStatuses = ["Active", "Hidden", "Expired", "Sold"];
+
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status value" });
     }
@@ -295,14 +468,14 @@ export const getAdById = async (req, res) => {
     const ad = await Ad.findById(req.params.id);
     if (!ad) return res.status(404).json({ message: "Ad not found" });
 
-    const seller = await User.findOne({ uid: ad.ownerUid }).select("name email phone");
+    const seller = await User.findOne({ uid: ad.ownerUid }).select(
+      "name email phone"
+    );
 
-    const adWithSeller = {
+    res.status(200).json({
       ...ad.toObject(),
       seller: seller || null,
-    };
-
-    res.status(200).json(adWithSeller);
+    });
   } catch (error) {
     console.error("Error fetching ad:", error);
     res.status(500).json({ message: "Server error", error: error.message });
@@ -315,17 +488,20 @@ export const getAdById = async (req, res) => {
 export const updateFavoriteCount = async (req, res) => {
   try {
     const { id } = req.params;
-    const { action } = req.body; // "add" or "remove"
+    const { action } = req.body;
 
     const ad = await Ad.findById(id);
     if (!ad) return res.status(404).json({ message: "Ad not found" });
 
     if (action === "add") ad.favouritesCount = (ad.favouritesCount || 0) + 1;
-    else if (action === "remove" && ad.favouritesCount > 0)
+    if (action === "remove" && ad.favouritesCount > 0)
       ad.favouritesCount -= 1;
 
     await ad.save();
-    res.status(200).json({ message: "Favorites updated", favouritesCount: ad.favouritesCount });
+    res.status(200).json({
+      message: "Favorites updated",
+      favouritesCount: ad.favouritesCount,
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -335,8 +511,9 @@ export const updateFavoriteCount = async (req, res) => {
    🔎 SEARCH ADS
 ================================ */
 export const searchAds = async (req, res) => {
-  const { query, location } = req.query;
   try {
+    const { query, location } = req.query;
+
     const filters = {
       $or: [
         { title: { $regex: query, $options: "i" } },

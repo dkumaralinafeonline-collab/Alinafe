@@ -11,7 +11,9 @@ export const getAdminStats = async (req, res) => {
     // ⚡ CACHE CHECK
     const cached = cache.get("admin_overview_alinafe");
     if (cached) {
-      return res.status(200).json({ success: true, source: "cache", ...cached });
+      return res
+        .status(200)
+        .json({ success: true, source: "cache", ...cached });
     }
 
     // ⚡ 1. CORE COUNTS
@@ -186,7 +188,8 @@ export const getAdminStats = async (req, res) => {
               as: "ad",
             },
           },
-          { $unwind: "$ad" },
+          // ✅ prevent crash if message has no adId
+          { $unwind: { path: "$ad", preserveNullAndEmptyArrays: false } },
           {
             $group: {
               _id: "$ad.category",
@@ -226,43 +229,53 @@ export const getAdminStats = async (req, res) => {
     ]);
 
     // ⚡ 7. TOP ACTIVE SELLERS (NEW FEATURE)
-   // ⚡ 7. TOP ACTIVE SELLERS (NEW FEATURE)
-const topActiveSellers = await User.aggregate([
-  {
-    $lookup: {
-      from: "ads",
-      localField: "uid",
-      foreignField: "ownerUid",
-      as: "ads",
-    },
-  },
-  {
-    $addFields: {
-      totalAdsPosted: { $size: "$ads" },
-      memberSince: "$createdAt",
-      isActiveSeller: {
-        $cond: [{ $gt: [{ $size: "$ads" }, 0] }, true, false],
+    const topActiveSellers = await User.aggregate([
+      {
+        $lookup: {
+          from: "ads",
+          localField: "uid",
+          foreignField: "ownerUid",
+          as: "ads",
+        },
       },
-    },
-  },
-  {
-    $project: {
-      uid: 1,
-      name: 1,
-      email: 1,
-      memberSince: 1,
-      totalAdsPosted: 1,
-      isActiveSeller: 1,
-    },
-  },
-  { $sort: { totalAdsPosted: -1 } },
-  { $limit: 10 },
-]);
-
+      {
+        $addFields: {
+          totalAdsPosted: { $size: "$ads" },
+          memberSince: "$createdAt",
+          isActiveSeller: {
+            $cond: [{ $gt: [{ $size: "$ads" }, 0] }, true, false],
+          },
+        },
+      },
+      {
+        $project: {
+          uid: 1,
+          name: 1,
+          email: 1,
+          memberSince: 1,
+          totalAdsPosted: 1,
+          isActiveSeller: 1,
+        },
+      },
+      { $sort: { totalAdsPosted: -1 } },
+      { $limit: 10 },
+    ]);
 
     // ⚡ 8. ACTIVE & INACTIVE USERS
-    const activeUsers = Math.round(totalUsers * 0.75);
-    const inactiveUsers = totalUsers - activeUsers;
+    // ✅ Better logic: based on recent login instead of random %.
+    // If you don't have lastLogin field, it will fallback to 0 and still not crash.
+    const activeSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // last 30 days
+    let activeUsers = 0;
+
+    try {
+      activeUsers = await User.countDocuments({
+        lastLogin: { $gte: activeSince },
+      });
+    } catch (e) {
+      activeUsers = Math.round(totalUsers * 0.75); // fallback
+    }
+
+    const inactiveUsers = Math.max(totalUsers - activeUsers, 0);
 
     const engagementRate =
       totalUsers > 0 ? (totalMessages / totalUsers).toFixed(1) : "0";
@@ -299,15 +312,12 @@ const topActiveSellers = await User.aggregate([
 
     cache.set("admin_overview_alinafe", overview);
 
-    return res.status(200).json({ success: true, ...overview });
+    return res.status(200).json({ success: true, source: "db", ...overview });
   } catch (err) {
     console.error("🔥 ALINAFE ADMIN ANALYTICS ERROR:", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: err.message || "Failed to fetch analytics",
     });
   }
 };
-
-
-

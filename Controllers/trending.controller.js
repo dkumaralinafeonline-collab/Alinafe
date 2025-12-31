@@ -4,7 +4,8 @@ import Ad from "../models/Ad.js";
 export const getTrendingAds = async (req, res) => {
   try {
     /* =================================================
-       1️⃣ READ VALIDATED QUERY (NODE 24 SAFE)
+       1️⃣ READ VALIDATED QUERY (SAFE)
+       (validate middleware already applied in routes)
     ================================================= */
     const {
       lat,
@@ -13,14 +14,18 @@ export const getTrendingAds = async (req, res) => {
       limit = 10,
     } = req.validated?.query || {};
 
-    const safeLimit = Number(limit) || 10;
+    const safeLimit = Math.min(Number(limit) || 10, 50); // ⛔ hard cap
 
     let ads = [];
 
     /* =================================================
-       2️⃣ TRY GEO-BASED TRENDING (PRIMARY)
+       2️⃣ GEO-BASED TRENDING (PRIMARY)
+       (Only if lat & lng provided)
     ================================================= */
-    if (lat != null && lng != null) {
+    if (
+      typeof lat === "number" &&
+      typeof lng === "number"
+    ) {
       const geoPipeline = [
         {
           $geoNear: {
@@ -29,7 +34,7 @@ export const getTrendingAds = async (req, res) => {
               coordinates: [lng, lat],
             },
             distanceField: "distance",
-            maxDistance: 15000, // 15 km
+            maxDistance: 15000, // 15 KM
             spherical: true,
             query: { status: "Approved" },
           },
@@ -77,7 +82,8 @@ export const getTrendingAds = async (req, res) => {
     }
 
     /* =================================================
-       3️⃣ FALLBACK → CITY BASED (IF GEO EMPTY)
+       3️⃣ FALLBACK → CITY BASED
+       (If geo empty or not available)
     ================================================= */
     if (ads.length === 0 && city) {
       const cityPipeline = [
@@ -180,9 +186,11 @@ export const getTrendingAds = async (req, res) => {
     /* =================================================
        5️⃣ RESPONSE
     ================================================= */
-    return res.json(ads);
+    return res.status(200).json(ads);
   } catch (err) {
     console.error("❌ Trending Error:", err);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({
+      message: "Server error while fetching trending ads",
+    });
   }
 };
