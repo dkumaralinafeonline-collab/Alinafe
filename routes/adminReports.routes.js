@@ -7,7 +7,7 @@ import {
   getReportById,
   updateReportStatus,
   deleteReport,
-} from "../controllers/reportController.js";
+} from "../Controllers/reportController.js";
 
 const router = express.Router();
 

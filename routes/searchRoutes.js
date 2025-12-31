@@ -2,7 +2,7 @@ import express from "express";
 import {
   globalSearch,
   getTrendingSearches,
-} from "../controllers/searchController.js";
+} from "../Controllers/searchController.js";
 
 import {
   searchLimiter,

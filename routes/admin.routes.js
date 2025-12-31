@@ -15,7 +15,7 @@ import {
   rejectAd,
   deleteAdByAdmin,
   getAdsStats,
-} from "../controllers/adminController.js";
+} from "../Controllers/adminController.js";
 
 import { getAdminStats } from "../controllers/adminOverview.controller.js";
 

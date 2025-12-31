@@ -7,7 +7,7 @@ import cloudinary from "../config/cloudinary.js";
 import {
   createReport,
   getUserReports,
-} from "../controllers/reportController.js";
+} from "../Controllers/reportController.js";
 
 const router = express.Router();
 
