@@ -17,7 +17,7 @@ import {
   getAdsStats,
 } from "../Controllers/adminController.js";
 
-import { getAdminStats } from "../controllers/adminOverview.controller.js";
+import { getAdminStats } from "../Controllers/adminOverview.controller.js";
 
 const router = express.Router();
 
