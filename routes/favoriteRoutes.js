@@ -12,7 +12,7 @@ import {
 const router = express.Router();
 
 /* =====================================================
-   ❤️ TOGGLE FAVORITE (ADD / REMOVE)
+   ❤️ TOGGLE FAVORITE (ADD / REMOVE)  
    🔐 LOGIN REQUIRED
    PUT /api/favorites/toggle
 ===================================================== */

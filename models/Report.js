@@ -35,10 +35,10 @@ const reportSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: [
-        "Fake Listing",
-        "Fraudulent Seller",
-        "Inappropriate Content",
-        "Scam / Misleading Info",
+        "Offensive content",
+        "Fraud",
+        "Duplicate ad",
+        "Product already sold",
         "Other",
       ],
     },
@@ -59,6 +59,25 @@ const reportSchema = new mongoose.Schema(
       enum: ["Pending", "Approved", "Rejected"],
       default: "Pending",
     },
+
+    // Admin resolution metadata
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
+    resolvedBy: {
+      type: String,
+      default: "",
+    },
+    adminNote: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    action: {
+      type: String,
+      default: "Pending",
+    },
   },
   { timestamps: true }
 );
@@ -69,3 +88,4 @@ reportSchema.index({ reporterId: 1, adId: 1 });
 const Report = mongoose.model("Report", reportSchema);
 
 export default Report;
+  

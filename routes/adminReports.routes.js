@@ -6,17 +6,18 @@ import {
   getAllReports,
   getReportById,
   updateReportStatus,
+  deleteReportedAd,
   deleteReport,
-} from "../Controllers/reportController.js";
+} from "../Controllers/report.admin.controller.js";
 
 const router = express.Router();
 
-/* 🔐 ADMIN ONLY */
 router.use(authMiddleware, roleMiddleware("admin"));
 
 router.get("/", getAllReports);
 router.get("/:id", getReportById);
-router.put("/:id", updateReportStatus);
+router.put("/:id/status", updateReportStatus);
+router.delete("/:id/delete-ad", deleteReportedAd);
 router.delete("/:id", deleteReport);
 
 export default router;

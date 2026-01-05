@@ -11,6 +11,11 @@ const adSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    userId: {
+      type: String,
+      default: "",
+      index: true,
+    },
     ownerName: {
       type: String,
       default: "",
@@ -228,6 +233,15 @@ geo: {
     fileType: { type: String, default: "" },
     accessType: { type: String, default: "" },
 
+    /* =================================================
+       DOMAIN
+    ================================================= */
+    domainName: { type: String, default: "" },
+    domainExtension: { type: String, default: "" },
+    domainRegistrationYear: { type: String, default: "" },
+    domainExpiryDate: { type: Date, default: null },
+    domainRegistrar: { type: String, default: "" },
+
     /* ===========================
        📊 ANALYTICS
     =========================== */
@@ -249,9 +263,17 @@ geo: {
     =========================== */
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected", "Sold"],
+      enum: ["Pending", "Approved", "Rejected", "Sold", "deleted"],
       default: "Pending",
       index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: String,
+      default: "",
     },
     featured: {
       type: Boolean,

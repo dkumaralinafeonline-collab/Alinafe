@@ -237,7 +237,8 @@ export const getAllAds = async (req, res) => {
             "salary quantity " +
             "size color type " +
             "age breed gender ageGroup " +
-            "fileType accessType"
+            "fileType accessType " +
+            "domainName domainExtension domainRegistrationYear domainExpiryDate domainRegistrar"
         ),
       Ad.countDocuments(filters),
     ]);

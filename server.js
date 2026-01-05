@@ -31,6 +31,8 @@ import adminAuthRoutes from "./routes/adminAuth.routes.js";
 import authMiddleware from "./middlewares/authMiddleware.js";
 import adminReportRoutes from "./routes/adminReports.routes.js";
 import searchRoutes from "./routes/searchRoutes.js";
+import contactRoutes from "./routes/contactRoutes.js";
+
 
 
 
@@ -122,6 +124,8 @@ app.use("/api/admin/reports", adminReportRoutes); // ADMIN
 app.use("/api/trending", trendingRoutes);
 app.use("/api/public/sellers", publicSellerRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/contact", contactRoutes);
+
 
 /* =========================
    🔐 PROTECTED ADMIN ROUTES

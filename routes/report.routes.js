@@ -7,13 +7,13 @@ import cloudinary from "../config/cloudinary.js";
 import {
   createReport,
   getUserReports,
-} from "../Controllers/reportController.js";
+} from "../Controllers/report.user.controller.js";
 
 const router = express.Router();
 
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
+  params: { 
     folder: "Zitheke_Reports",
     allowed_formats: ["jpg", "png", "jpeg", "pdf"],
   },
