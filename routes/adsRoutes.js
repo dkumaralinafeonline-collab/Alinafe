@@ -11,6 +11,8 @@ import {
   incrementView,
   updateFavoriteCount,
   searchAds,
+  getPromoAds,
+
 } from "../Controllers/adController.js";
 
 // 🔐 AUTH MIDDLEWARE
@@ -109,6 +111,13 @@ router.get("/user/:uid", authMiddleware, getUserAds);
    🔎 SEARCH ADS (PUBLIC)
 ================================================= */
 router.get("/search/ads", searchAds);
+
+/* =================================================
+   ⭐ GET PROMO ADS (HOMEPAGE / SECTIONS)
+   - Public
+   - Lightweight
+================================================= */
+router.get("/promo", getPromoAds);
 
 /* =================================================
    🌍 GET ALL APPROVED ADS (PUBLIC)
