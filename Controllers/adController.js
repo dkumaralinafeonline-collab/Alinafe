@@ -278,7 +278,7 @@ export const getAllAds = async (req, res) => {
             "ownerName status views favouritesCount negotiable featured createdAt " +
             "condition brand year mileage warranty " +
             "bedrooms bathrooms area " +
-            "salary quantity " +
+            "salary experience company quantity serviceType availability serviceArea sportType weight brand " +
             "size color type " +
             "age breed gender ageGroup " +
             "fileType accessType " +

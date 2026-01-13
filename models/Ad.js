@@ -216,6 +216,8 @@ geo: {
     serviceType: { type: String, default: "" },
     availability: { type: String, default: "" },   // Full day / Weekends
     serviceArea: { type: String, default: "" },
+    sportType: { type: String, default: "" },
+    weight: { type: String, default: "" },
 
     /* =================================================
        📦 AGRICULTURE / BUSINESS

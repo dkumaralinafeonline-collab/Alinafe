@@ -1517,3 +1517,41 @@
 
 // seedSearchData();
 
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import Category from "./models/Category.js";
+
+dotenv.config();
+
+const seedSearchData = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+
+    await Category.updateOne(
+      { name: "Sports" },
+      {
+        $set: {
+          sportTypes: [
+            "Yoga",
+            "Gym & Fitness",
+            "Cricket",
+            "Football",
+            "Badminton",
+            "Cycling",
+            "Running",
+            "Meditation",
+          ],
+        },
+      },
+      { upsert: true }
+    );
+
+    console.log("✅ Sports category updated with sportTypes");
+    process.exit();
+  } catch (error) {
+    console.error(error);
+    process.exit(1);
+  }
+};
+
+seedSearchData();
