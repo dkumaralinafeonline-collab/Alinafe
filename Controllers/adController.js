@@ -276,13 +276,13 @@ export const getAllAds = async (req, res) => {
           "title description price images category subcategory " +
             "city location " +
             "ownerName status views favouritesCount negotiable featured createdAt " +
-            "condition brand year mileage warranty " +
-            "bedrooms bathrooms area " +
+            "condition brand model storage year mileage warranty " +
+            " partCategory originalType workingStatus accessoryType vehicleType " +
+            "bedrooms bathrooms area furnishing parking washroom roomType plotArea plotType facing  " +
             "salary experience company quantity serviceType availability serviceArea sportType weight brand " +
             "size color type " +
-            "age breed gender ageGroup " +
-            "fileType accessType " +
-            "domainName domainExtension domainRegistrationYear domainExpiryDate domainRegistrar"
+            "age breed gender " +
+            "fileType accessType"
         ),
       Ad.countDocuments(filters),
     ]);

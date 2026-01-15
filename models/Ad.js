@@ -168,11 +168,23 @@ geo: {
     bathrooms: { type: String, default: "" },
     area: { type: String, default: "" },
     furnishing: { type: String, default: "" },
+    parking: { type: String, default: "" },
+    washroom: { type: String, default: "" },
+    roomType: { type: String, default: "" },
+    plotArea: { type: String, default: "" },
+    plotType: { type: String, default: "" },
+    facing: { type: String, default: "" },
 
     /* =================================================
        🚗 VEHICLES
     ================================================= */
     brand: { type: String, default: "" },
+    partName: { type: String, default: "" },
+    partCategory: { type: String, default: "" },
+    originalType: { type: String, default: "" },
+    workingStatus: { type: String, default: "" },
+    accessoryType: { type: String, default: "" },
+    vehicleType: { type: String, default: "" },
     year: { type: String, default: "" },
     mileage: { type: String, default: "" },
     fuelType: { type: String, default: "" },
@@ -181,6 +193,7 @@ geo: {
        ⚡ ELECTRONICS / MOBILES
     ================================================= */
     model: { type: String, default: "" },
+    storage: { type: String, default: "" },
     warranty: { type: String, default: "" },
     conditionNote: { type: String, default: "" },
 
@@ -225,24 +238,10 @@ geo: {
     quantity: { type: String, default: "" },
 
     /* =================================================
-       🎓 KIDS / EDUCATION
-    ================================================= */
-    ageGroup: { type: String, default: "" },
-
-    /* =================================================
        💻 DIGITAL PRODUCTS
     ================================================= */
     fileType: { type: String, default: "" },
     accessType: { type: String, default: "" },
-
-    /* =================================================
-       DOMAIN
-    ================================================= */
-    domainName: { type: String, default: "" },
-    domainExtension: { type: String, default: "" },
-    domainRegistrationYear: { type: String, default: "" },
-    domainExpiryDate: { type: Date, default: null },
-    domainRegistrar: { type: String, default: "" },
 
     /* ===========================
        📊 ANALYTICS
