@@ -1517,41 +1517,99 @@
 
 // seedSearchData();
 
+// import mongoose from "mongoose";
+// import dotenv from "dotenv";
+// import Category from "./models/Category.js";
+
+// dotenv.config();
+
+// const seedSearchData = async () => {
+//   try {
+//     await mongoose.connect(process.env.MONGO_URI);
+
+//     await Category.updateOne(
+//       { name: "Sports" },
+//       {
+//         $set: {
+//           sportTypes: [
+//             "Yoga",
+//             "Gym & Fitness",
+//             "Cricket",
+//             "Football",
+//             "Badminton",
+//             "Cycling",
+//             "Running",
+//             "Meditation",
+//           ],
+//         },
+//       },
+//       { upsert: true }
+//     );
+
+//     console.log("✅ Sports category updated with sportTypes");
+//     process.exit();
+//   } catch (error) {
+//     console.error(error);
+//     process.exit(1);
+//   }
+// };
+
+// seedSearchData();
+
+
+
+
+
+
+
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import Category from "./models/Category.js";
+import Ad from "./models/Ad.js";
 
 dotenv.config();
 
-const seedSearchData = async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URI);
+async function run() {
+  // 🔁 CHANGE DIRECTION HERE
+  const from = "HomeFurniture";
+  const to = "Furniture";
 
-    await Category.updateOne(
-      { name: "Sports" },
-      {
-        $set: {
-          sportTypes: [
-            "Yoga",
-            "Gym & Fitness",
-            "Cricket",
-            "Football",
-            "Badminton",
-            "Cycling",
-            "Running",
-            "Meditation",
-          ],
-        },
-      },
-      { upsert: true }
+  try {
+    if (!process.env.MONGO_URI) {
+      throw new Error("MONGO_URI missing in .env");
+    }
+
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ MongoDB connected");
+
+    // 1️⃣ Update Category collection
+    const catRes = await Category.updateMany(
+      { name: from },
+      { $set: { name: to } }
     );
 
-    console.log("✅ Sports category updated with sportTypes");
-    process.exit();
-  } catch (error) {
-    console.error(error);
-    process.exit(1);
-  }
-};
+    console.log(
+      `✅ Category updated → matched=${catRes.matchedCount}, modified=${catRes.modifiedCount}`
+    );
 
-seedSearchData();
+    // 2️⃣ Update Ads collection
+    const adRes = await Ad.updateMany(
+      { category: from },
+      { $set: { category: to } }
+    );
+
+    console.log(
+      `✅ Ads updated → matched=${adRes.matchedCount}, modified=${adRes.modifiedCount}`
+    );
+
+    console.log("🎉 Category rename completed successfully!");
+  } catch (err) {
+    console.error("❌ Error:", err.message);
+    process.exitCode = 1;
+  } finally {
+    await mongoose.disconnect();
+    console.log("🔌 MongoDB disconnected");
+  }
+}
+
+run();
