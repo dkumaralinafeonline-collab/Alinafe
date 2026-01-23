@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import User from "../models/User.js";
 import Ad from "../models/Ad.js";
 import { v2 as cloudinary } from "cloudinary";
+import { EmailService } from "../Services/email.service.js";
 
 /* ==========================================================
    👤 USER MANAGEMENT SECTION
@@ -188,6 +189,19 @@ export const approveAd = async (req, res) => {
       return res.status(404).json({ message: "Ad not found" });
     }
 
+    if (ad.ownerEmail) {
+      EmailService.sendTemplate({
+        to: ad.ownerEmail,
+        template: "AD_APPROVED",
+        data: {
+          name: ad.ownerName || "there",
+          title: ad.title,
+        },
+      }).catch((err) => {
+        console.error("Ad approved email failed:", err?.message || err);
+      });
+    }
+
     res.status(200).json({
       message: "Ad approved successfully",
       ad,
@@ -216,6 +230,20 @@ export const rejectAd = async (req, res) => {
 
     if (!ad) {
       return res.status(404).json({ message: "Ad not found" });
+    }
+
+    if (ad.ownerEmail) {
+      EmailService.sendTemplate({
+        to: ad.ownerEmail,
+        template: "AD_REJECTED",
+        data: {
+          name: ad.ownerName || "there",
+          title: ad.title,
+          reason: ad.reportReason || reason || "No reason provided",
+        },
+      }).catch((err) => {
+        console.error("Ad rejected email failed:", err?.message || err);
+      });
     }
 
     res.status(200).json({

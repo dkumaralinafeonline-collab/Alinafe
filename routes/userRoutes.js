@@ -8,6 +8,7 @@ import {
   registerUser,
   getUserProfile,
   updateUserProfile,
+  logoutUser,
 } from "../Controllers/userController.js";
 
 const router = express.Router();
@@ -19,6 +20,14 @@ const router = express.Router();
 router.post(
   "/register",
   registerUser
+);
+
+/* =====================================================
+   dY` LOGOUT USER (PUBLIC)
+===================================================== */
+router.post(
+  "/logout",
+  logoutUser
 );
 
 /* =====================================================

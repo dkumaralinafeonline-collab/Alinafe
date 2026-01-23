@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Ad from "../models/Ad.js";
 import User from "../models/User.js";
 import { v2 as cloudinary } from "cloudinary";
+import { EmailService } from "../Services/email.service.js";
 
 /* ================================
    🧠 CLOUDINARY CONFIG
@@ -137,6 +138,20 @@ export const createAd = async (req, res) => {
       status: "Pending",
       reportReason: "",
     });
+
+    // Send ad posted email (non-blocking)
+    if (body.ownerEmail) {
+      EmailService.sendTemplate({
+        to: body.ownerEmail,
+        template: "AD_POSTED",
+        data: {
+          name: body.ownerName || "there",
+          title: body.title || "your ad",
+        },
+      }).catch((err) => {
+        console.error("Ad posted email failed:", err?.message || err);
+      });
+    }
 
     // 9️⃣ Update user city / location (safe)
     const updateFields = {};

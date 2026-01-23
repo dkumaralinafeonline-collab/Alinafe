@@ -4,6 +4,7 @@ import cloudinary from "../config/cloudinary.js";
 import axios from "axios";
 import streamifier from "streamifier";
 import jwt from "jsonwebtoken";
+import { EmailService } from "../Services/email.service.js";
 
 /* =====================================================
    🔹 REGISTER / SYNC USER (PUBLIC)
@@ -23,6 +24,7 @@ export const registerUser = async (req, res) => {
 
     let user = await User.findOne({ uid });
     let cloudinaryUrl = "";
+    let created = false;
 
     // ✅ Upload photo to Cloudinary (only once)
     if (
@@ -50,20 +52,40 @@ export const registerUser = async (req, res) => {
     }
 
     // ✅ CREATE OR UPDATE USER
+    const fallbackName = name || email.split("@")[0];
+    const desiredPhoto =
+      cloudinaryUrl ||
+      photoURL ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}`;
+
     if (!user) {
-      user = await User.create({
-        uid,
-        name: name || email.split("@")[0],
-        email,
-        photoURL:
-        cloudinaryUrl ||
-        photoURL ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(
-          name || email.split("@")[0]
-        )}`,
-              lastLogin: new Date(),
-      });
-      console.log("🆕 New user registered:", email);
+      try {
+        user = await User.create({
+          uid,
+          name: fallbackName,
+          email,
+          photoURL: desiredPhoto,
+          lastLogin: new Date(),
+        });
+        created = true;
+      } catch (err) {
+        if (err?.code === 11000) {
+          user = await User.findOne({ uid });
+        } else {
+          throw err;
+        }
+      }
+
+      if (created) {
+        console.log("🆕 New user registered:", email);
+        EmailService.sendTemplate({
+          to: email,
+          template: "WELCOME",
+          data: { name: fallbackName },
+        }).catch((err) => {
+          console.error("Welcome email failed:", err?.message || err);
+        });
+      }
     } else {
       user.lastLogin = new Date();
       if (cloudinaryUrl) user.photoURL = cloudinaryUrl;
@@ -154,5 +176,40 @@ export const updateUserProfile = async (req, res) => {
   } catch (error) {
     console.error("❌ Error updating user:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+/* =====================================================
+   dY` LOGOUT USER (PUBLIC)
+===================================================== */
+export const logoutUser = async (req, res) => {
+  try {
+    const { uid, email, name } = req.body;
+
+    if (!uid || !email) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
+
+    EmailService.sendTemplate({
+      to: email,
+      template: "LOGOUT_SUCCESS",
+      data: { name: name || email.split("@")[0] },
+    }).catch((err) => {
+      console.error("Logout email failed:", err?.message || err);
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logout email queued",
+    });
+  } catch (error) {
+    console.error("ƒ?O Error logging out user:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };

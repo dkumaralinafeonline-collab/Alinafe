@@ -2,7 +2,9 @@
 import mongoose from "mongoose";
 import Message from "../models/Message.js";
 import Conversation from "../models/Conversation.js";
+import User from "../models/User.js";
 import { v2 as cloudinary } from "cloudinary";
+import { EmailService } from "../Services/email.service.js";
 
 /* =====================================================
    🔹 Helpers
@@ -189,6 +191,7 @@ export const saveMessage = async (req, res) => {
       participants: { $all: [senderId, receiverId] },
       adId: adId || null,
     });
+    const isNewConversation = !convo;
 
     const lastMessageText = msgType === "text" ? text : `[${msgType}]`;
 
@@ -251,6 +254,65 @@ export const saveMessage = async (req, res) => {
     };
 
     const newMsg = await Message.create(baseDoc);
+
+    // --- Email notifications (non-blocking) ---
+    const isCallbackRequest =
+      msgType === "text" &&
+      text.toLowerCase().includes("request call back");
+
+    if (isNewConversation || isCallbackRequest) {
+      Promise.all([
+        User.findOne({ uid: receiverId }).lean(),
+        User.findOne({ uid: senderId }).lean(),
+      ])
+        .then(([receiverUser, senderUser]) => {
+          const toEmail = receiverUser?.email;
+          if (!toEmail) return;
+
+          const senderName =
+            req.body?.senderName ||
+            senderUser?.name ||
+            "Someone";
+
+          const sellerName = receiverUser?.name || "there";
+          const title = productTitle || "your listing";
+
+          if (isCallbackRequest) {
+            const phoneMatch = text.match(/Phone:\s*([\s\S]*?)\n/i);
+            const messageMatch = text.match(/Message:\s*([\s\S]*)$/i);
+
+            EmailService.sendTemplate({
+              to: toEmail,
+              template: "CALLBACK_REQUESTED",
+              data: {
+                name: sellerName,
+                senderName,
+                title,
+                phone: phoneMatch?.[1]?.trim() || "",
+                message: messageMatch?.[1]?.trim() || "",
+              },
+            }).catch((err) => {
+              console.error("Callback email failed:", err?.message || err);
+            });
+            return;
+          }
+
+          if (isNewConversation) {
+            EmailService.sendTemplate({
+              to: toEmail,
+              template: "CHAT_STARTED",
+              data: {
+                name: sellerName,
+                senderName,
+                title,
+              },
+            }).catch((err) => {
+              console.error("Chat started email failed:", err?.message || err);
+            });
+          }
+        })
+        .catch(() => {});
+    }
 
     // ✅ Emit "new message" + try delivery ack flow
     // Assumption: receiver joins a room named by their uid: io.to(receiverId)
