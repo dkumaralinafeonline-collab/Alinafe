@@ -13,6 +13,11 @@ import { loginSuccessTemplate } from "../utils/emailTemplates/loginSuccess.templ
 import { logoutSuccessTemplate } from "../utils/emailTemplates/logoutSuccess.template.js";
 import { chatStartedTemplate } from "../utils/emailTemplates/chatStarted.template.js";
 import { callbackRequestedTemplate } from "../utils/emailTemplates/callbackRequested.template.js";
+import { adReportedTemplate } from "../utils/emailTemplates/adReported.template.js";
+import { reportReceivedTemplate } from "../utils/emailTemplates/reportReceived.template.js";
+import { reportApprovedTemplate } from "../utils/emailTemplates/reportApproved.template.js";
+import { reportRejectedTemplate } from "../utils/emailTemplates/reportRejected.template.js";
+import { adDeletedByAdminTemplate } from "../utils/emailTemplates/adDeletedByAdmin.template.js";
 
 /**
  * Infobip Email Send:
@@ -106,6 +111,59 @@ const buildTemplate = (template, data = {}) => {
           message: data?.message,
         }),
         text: `${data?.senderName || "Someone"} requested a call back for "${data?.title || "your listing"}".`,
+      };
+
+    case "AD_REPORTED":
+      return {
+        subject: `Your ${env.APP_NAME} ad was reported`,
+        html: adReportedTemplate({
+          name: data?.name,
+          adTitle: data?.adTitle,
+        }),
+        text: `Your ad "${data?.adTitle || "your listing"}" was reported. Our team will review it.`,
+      };
+
+    case "REPORT_RECEIVED":
+      return {
+        subject: `We received your report on ${env.APP_NAME}`,
+        html: reportReceivedTemplate({
+          name: data?.name,
+          adTitle: data?.adTitle,
+        }),
+        text: `Your report for "${data?.adTitle || "the ad"}" has been submitted. We'll review it shortly.`,
+      };
+
+    case "REPORT_APPROVED":
+      return {
+        subject: `Your report was approved`,
+        html: reportApprovedTemplate({
+          name: data?.name,
+          adTitle: data?.adTitle,
+          adminNote: data?.adminNote,
+        }),
+        text: `Your report for "${data?.adTitle || "the ad"}" was approved.`,
+      };
+
+    case "REPORT_REJECTED":
+      return {
+        subject: `Your report was rejected`,
+        html: reportRejectedTemplate({
+          name: data?.name,
+          adTitle: data?.adTitle,
+          adminNote: data?.adminNote,
+        }),
+        text: `Your report for "${data?.adTitle || "the ad"}" was rejected.`,
+      };
+
+    case "AD_DELETED_BY_ADMIN":
+      return {
+        subject: `Your ${env.APP_NAME} ad was removed`,
+        html: adDeletedByAdminTemplate({
+          name: data?.name,
+          adTitle: data?.adTitle,
+          adminNote: data?.adminNote,
+        }),
+        text: `Your ad "${data?.adTitle || "your ad"}" was removed by admin.`,
       };
 
     default:

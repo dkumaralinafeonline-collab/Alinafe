@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import Report from "../models/Report.js";
 import Ad from "../models/Ad.js";
+import User from "../models/User.js";
+import { EmailService } from "../Services/email.service.js";
 
 /* ---------------------------
    Helpers (Consistent Errors)
@@ -59,7 +61,7 @@ export const createReport = async (req, res) => {
 
     // ✅ Always load Ad from DB and derive fields server-side
     const ad = await Ad.findById(adId)
-      .select("_id title ownerUid userId status deletedAt")
+      .select("_id title ownerUid userId status deletedAt ownerEmail ownerName")
       .lean();
 
     if (!ad) {
@@ -112,6 +114,43 @@ export const createReport = async (req, res) => {
     };
 
     const report = await Report.create(payload);
+
+    // --- Email notifications (non-blocking) ---
+    Promise.all([
+      User.findOne({ uid: derivedSellerId }).lean(),
+      User.findOne({ uid: reporterId }).lean(),
+    ])
+      .then(([sellerUser, reporterUser]) => {
+        const sellerEmail = ad.ownerEmail || sellerUser?.email || "";
+        const reporterEmail = reporterUser?.email || "";
+
+        if (sellerEmail) {
+          EmailService.sendTemplate({
+            to: sellerEmail,
+            template: "AD_REPORTED",
+            data: {
+              name: ad.ownerName || sellerUser?.name || "there",
+              adTitle: derivedAdTitle,
+            },
+          }).catch((err) => {
+            console.error("Ad reported email failed:", err?.message || err);
+          });
+        }
+
+        if (reporterEmail) {
+          EmailService.sendTemplate({
+            to: reporterEmail,
+            template: "REPORT_RECEIVED",
+            data: {
+              name: reporterUser?.name || reporterName || "there",
+              adTitle: derivedAdTitle,
+            },
+          }).catch((err) => {
+            console.error("Report received email failed:", err?.message || err);
+          });
+        }
+      })
+      .catch(() => {});
 
     logCtx("REPORT_CREATED", {
       reportId: report?._id,

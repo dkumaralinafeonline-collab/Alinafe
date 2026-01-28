@@ -36,3 +36,15 @@ export const emailLimiter = rateLimit({
     message: "Too many email requests. Please try again shortly.",
   },
 });
+
+// 📲 SMS / OTP limiter
+export const smsLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 SMS requests/min/IP (adjust as needed)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many OTP requests. Please try again shortly.",
+  },
+});

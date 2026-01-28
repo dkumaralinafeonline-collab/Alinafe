@@ -33,6 +33,7 @@ import adminReportRoutes from "./routes/adminReports.routes.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import emailRoutes from "./routes/email.routes.js";
+import phoneAuthRoutes from "./routes/phoneAuth.routes.js";
 
 
 
@@ -128,6 +129,7 @@ app.use("/api/search", searchRoutes);
 app.use("/api/contact", contactRoutes);
 
 app.use("/api/email", emailRoutes);
+app.use("/api/auth/phone", phoneAuthRoutes);
 
 
 

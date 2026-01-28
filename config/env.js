@@ -31,6 +31,7 @@ export const env = {
 
   INFOBIP_EMAIL_SENDER: required("INFOBIP_EMAIL_SENDER"),
   INFOBIP_EMAIL_REPLY: optional("INFOBIP_EMAIL_REPLY", ""),
+  INFOBIP_SMS_SENDER: required("INFOBIP_SENDER_ID"),
 
   APP_NAME: optional("APP_NAME", "App"),
 

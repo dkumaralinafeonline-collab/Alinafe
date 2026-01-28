@@ -1,7 +1,22 @@
-import Ad from "../models/Ad.js";
 import Category from "../models/Category.js";
 import Service from "../models/Service.js";
 import SearchLog from "../models/SearchLog.js";
+import Ad from "../models/Ad.js";
+
+const escapeRegex = (str = "") =>
+  String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const tokenizeQuery = (q = "") =>
+  q
+    .trim()
+    .split(/\s+/)
+    .map(escapeRegex)
+    .filter((t) => t.length >= 2);
+
+const buildTokenAnd = (tokens, field) =>
+  tokens.map((t) => ({
+    [field]: { $regex: `\\b${t}\\b`, $options: "i" },
+  }));
 
 /* =====================================================
    🔍 GLOBAL SEARCH (SUGGESTIONS ONLY)
@@ -62,6 +77,19 @@ export const globalSearch = async (req, res) => {
       : [];
 
     // -----------------------------
+    // ADS TITLE SUGGESTIONS
+    // -----------------------------
+    const tokens = tokenizeQuery(q);
+    const ads = tokens.length
+      ? await Ad.find({
+          status: { $in: ["Approved", "Active"] },
+          $and: buildTokenAnd(tokens, "title"),
+        })
+          .select("title category subcategory")
+          .limit(limit)
+      : [];
+
+    // -----------------------------
     // SEARCH LOG (TRENDING)
     // -----------------------------
     if (q) {
@@ -80,6 +108,7 @@ export const globalSearch = async (req, res) => {
       suggestions: {
         categories,
         services,
+        ads,
       },
     });
   } catch (error) {
@@ -98,10 +127,14 @@ export const globalSearch = async (req, res) => {
 ===================================================== */
 export const getAds = async (req, res) => {
   try {
-    let { q = "", location = "" } = req.query;
+    let { q = "", location = "", page = 1, limit = 20, sort = "newest" } =
+      req.query;
 
     q = q.trim();
     location = location.trim();
+    page = Number(page) || 1;
+    limit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+    const skip = (page - 1) * limit;
 
     // -----------------------------
     // BASE FILTER
@@ -127,27 +160,49 @@ export const getAds = async (req, res) => {
     // -----------------------------
     // QUERY FILTER (car, bike, service etc)
     // -----------------------------
-    if (q) {
+    const tokens = tokenizeQuery(q);
+    if (tokens.length) {
+      const tokenOr = tokens.join("|");
       filters.$or = [
-        { title: { $regex: q, $options: "i" } },
-        { description: { $regex: q, $options: "i" } },
-        { category: { $regex: q, $options: "i" } },
-        { subcategory: { $regex: q, $options: "i" } },
+        { $and: buildTokenAnd(tokens, "title") },
+        { $and: buildTokenAnd(tokens, "description") },
+        { category: { $regex: `\\b(${tokenOr})\\b`, $options: "i" } },
+        { subcategory: { $regex: `\\b(${tokenOr})\\b`, $options: "i" } },
       ];
     }
 
     // -----------------------------
+    // SORTING
+    // -----------------------------
+    const sortMap = {
+      newest: { createdAt: -1 },
+      price_asc: { price: 1, createdAt: -1 },
+      price_desc: { price: -1, createdAt: -1 },
+      popular: { views: -1, createdAt: -1 },
+    };
+    const sortBy = sortMap[String(sort).toLowerCase()] || sortMap.newest;
+
+    // -----------------------------
     // FETCH ADS
     // -----------------------------
-    const ads = await Ad.find(filters)
-      .select(
-        "title price images category subcategory city location featured createdAt"
-      )
-      .sort({ createdAt: -1 });
+    const [ads, total] = await Promise.all([
+      Ad.find(filters)
+        .select(
+          "title price images category subcategory city location featured createdAt views"
+        )
+        .sort(sortBy)
+        .skip(skip)
+        .limit(limit),
+      Ad.countDocuments(filters),
+    ]);
 
     return res.status(200).json({
       success: true,
       count: ads.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
       ads,
     });
   } catch (error) {

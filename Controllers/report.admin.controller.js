@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import Report from "../models/Report.js";
 import Ad from "../models/Ad.js";
+import User from "../models/User.js";
+import { EmailService } from "../Services/email.service.js";
 
 /* ---------------------------
    Helpers
@@ -209,6 +211,32 @@ export const updateReportStatus = async (req, res) => {
       return sendError(res, 404, "Report not found", { id }, "NOT_FOUND");
     }
 
+    // --- Email reporter about decision (Approved/Rejected) ---
+    if (status === "Approved" || status === "Rejected") {
+      Promise.all([
+        User.findOne({ uid: report.reporterId }).lean(),
+        Ad.findById(report.adId).select("title").lean(),
+      ])
+        .then(([reporterUser, ad]) => {
+          const reporterEmail = reporterUser?.email;
+          if (!reporterEmail) return;
+          const adTitle = ad?.title || report.adTitle || "the ad";
+
+          EmailService.sendTemplate({
+            to: reporterEmail,
+            template: status === "Approved" ? "REPORT_APPROVED" : "REPORT_REJECTED",
+            data: {
+              name: reporterUser?.name || report.reporterName || "there",
+              adTitle,
+              adminNote: adminNote || "",
+            },
+          }).catch((err) => {
+            console.error("Report decision email failed:", err?.message || err);
+          });
+        })
+        .catch(() => {});
+    }
+
     logCtx("REPORT_STATUS_UPDATED", {
       reportId: id,
       admin: req.user?._id || req.user?.uid,
@@ -333,6 +361,27 @@ export const deleteReportedAd = async (req, res) => {
         }
       ),
     ]);
+
+    // --- Email ad owner about deletion ---
+    Promise.all([
+      User.findOne({ uid: ad.ownerUid || ad.userId }).lean(),
+    ])
+      .then(([ownerUser]) => {
+        const ownerEmail = ad.ownerEmail || ownerUser?.email;
+        if (!ownerEmail) return;
+        EmailService.sendTemplate({
+          to: ownerEmail,
+          template: "AD_DELETED_BY_ADMIN",
+          data: {
+            name: ad.ownerName || ownerUser?.name || "there",
+            adTitle: ad.title || "your ad",
+            adminNote: adminNote || "",
+          },
+        }).catch((err) => {
+          console.error("Ad deleted email failed:", err?.message || err);
+        });
+      })
+      .catch(() => {});
 
     const resultPayload = {
       success: true,

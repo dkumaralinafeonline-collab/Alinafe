@@ -30,6 +30,11 @@ export const sendTemplateEmailSchema = z.object({
     "LOGOUT_SUCCESS",
     "CHAT_STARTED",
     "CALLBACK_REQUESTED",
+    "AD_REPORTED",
+    "REPORT_RECEIVED",
+    "REPORT_APPROVED",
+    "REPORT_REJECTED",
+    "AD_DELETED_BY_ADMIN",
   ]),
   data: z
     .object({
@@ -42,6 +47,8 @@ export const sendTemplateEmailSchema = z.object({
       senderName: z.string().trim().max(80).optional(),
       message: z.string().trim().max(2000).optional(),
       phone: z.string().trim().max(40).optional(),
+      adTitle: z.string().trim().max(120).optional(),
+      adminNote: z.string().trim().max(500).optional(),
     })
     .default({}),
 });
