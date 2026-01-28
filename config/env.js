@@ -33,7 +33,7 @@ export const env = {
   INFOBIP_EMAIL_REPLY: optional("INFOBIP_EMAIL_REPLY", ""),
   INFOBIP_SMS_SENDER: required("INFOBIP_SENDER_ID"),
 
-  APP_NAME: optional("APP_NAME", "App"),
+  APP_NAME: optional("APP_NAME", "ALINAFE"),
 
   // If set, email routes require: header "x-internal-email-key"
   INTERNAL_EMAIL_KEY: optional("INTERNAL_EMAIL_KEY", ""),

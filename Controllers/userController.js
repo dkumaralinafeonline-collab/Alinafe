@@ -91,6 +91,15 @@ export const registerUser = async (req, res) => {
       if (cloudinaryUrl) user.photoURL = cloudinaryUrl;
       await user.save();
       console.log("👤 Existing user updated:", email);
+
+      // ✅ Send login success email on every login
+      EmailService.sendTemplate({
+        to: email,
+        template: "LOGIN_SUCCESS",
+        data: { name: user.name || fallbackName },
+      }).catch((err) => {
+        console.error("Login email failed:", err?.message || err);
+      });
     }
 
     // 🔐 ✅ CREATE JWT TOKEN (MOST IMPORTANT)

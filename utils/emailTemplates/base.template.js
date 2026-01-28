@@ -35,11 +35,16 @@ export const baseTemplate = ({
       <td align="center">
         <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.08);">
           <tr>
-            <td style="padding:20px 22px;background:#0b1220;color:#ffffff;">
-              <div style="font-size:14px;letter-spacing:2px;text-transform:uppercase;opacity:0.9;">${escapeHtml(
-                env.APP_NAME
-              )}</div>
-              <div style="font-size:20px;font-weight:700;margin-top:6px;">${safeTitle}</div>
+            <td style="padding:22px;background:#f0fdfa;color:#0f172a;border-bottom:1px solid #ccfbf1;">
+              <div style="font-size:22px;font-weight:800;color:#0e9f9f;line-height:1.1;">
+                ${escapeHtml(env.APP_NAME)}
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#e94f37;letter-spacing:0.3px;margin-top:2px;">
+                Buy • Sell • Connect
+              </div>
+              <div style="font-size:18px;font-weight:700;margin-top:10px;color:#0f766e;">
+                ${safeTitle}
+              </div>
             </td>
           </tr>
 
