@@ -211,14 +211,31 @@ export const resolveLoginIdentifier = async (req, res) => {
 
     let user = null;
     if (isEmail) {
-      user = await User.findOne({ email: normalizedEmail }).select("email authProvider status");
+      user = await User.findOne({ email: normalizedEmail }).select(
+        "email authProvider passwordHash status"
+      );
     } else if (phoneCandidates.some((p) => p.length >= 10)) {
-      user = await User.findOne({
+      const candidates = await User.find({
         $or: [
           { contactNumber: { $in: phoneCandidates } },
           { phone: { $in: phoneCandidates } },
         ],
-      }).select("email authProvider status");
+      })
+        .select("email authProvider passwordHash status updatedAt")
+        .sort({ updatedAt: -1 })
+        .limit(25);
+
+      // Prefer accounts that can use password login when multiple users share a phone value.
+      user =
+        candidates.find(
+          (u) =>
+            u.status !== "Suspended" &&
+            (u.authProvider === "password" ||
+              u.authProvider === "google+password" ||
+              !!u.passwordHash)
+        ) ||
+        candidates.find((u) => u.status !== "Suspended") ||
+        null;
     }
 
     if (!user || user.status === "Suspended") {
@@ -228,7 +245,8 @@ export const resolveLoginIdentifier = async (req, res) => {
       });
     }
 
-    if (user.authProvider === "google") {
+    const isGoogleOnly = user.authProvider === "google" && !user.passwordHash;
+    if (isGoogleOnly) {
       return res.status(400).json({
         success: false,
         message: "This account uses Google Sign-In. Please continue with Google.",
