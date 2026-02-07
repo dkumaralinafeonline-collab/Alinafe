@@ -108,21 +108,24 @@ export const getFavorites = async (req, res) => {
     }
 
     const authUid = req.user.uid;
+    const authRole = req.user.role || "user";
     const { userId } = req.params;
 
     /* ===============================
        🔒 OWNERSHIP CHECK
     =============================== */
-    if (authUid !== userId) {
+    if (authUid !== userId && authRole !== "admin") {
       return res.status(403).json({
         message: "Access denied: cannot view another user's favorites",
       });
     }
 
+    const targetUid = authRole === "admin" ? userId : authUid;
+
     /* ===============================
        👤 FETCH USER + FAVORITES
     =============================== */
-    const user = await User.findOne({ uid: authUid }).populate({
+    const user = await User.findOne({ uid: targetUid }).populate({
       path: "favorites",
       options: { sort: { createdAt: -1 } },
     });

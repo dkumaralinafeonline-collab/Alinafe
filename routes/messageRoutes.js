@@ -1,5 +1,5 @@
 import express from "express";
-import authMiddleware from "../middlewares/authMiddleware.js";
+import verifyFirebaseToken from "../middlewares/verifyFirebaseToken.js";
 
 import {
   getMessagesByConversation,
@@ -15,7 +15,7 @@ const router = express.Router();
 ============================================================ */
 router.get(
   "/:conversationId",
-  authMiddleware,
+  verifyFirebaseToken,
   getMessagesByConversation
 );
 
@@ -24,7 +24,7 @@ router.get(
 ============================================================ */
 router.post(
   "/",
-  authMiddleware,
+  verifyFirebaseToken,
   saveMessage
 );
 
@@ -34,7 +34,7 @@ router.post(
 ============================================================ */
 router.put(
   "/delete-everyone/:messageId",
-  authMiddleware,
+  verifyFirebaseToken,
   deleteForEveryone
 );
 
@@ -43,8 +43,9 @@ router.put(
 ============================================================ */
 router.put(
   "/delete-me/:messageId",
-  authMiddleware,
+  verifyFirebaseToken,
   deleteForMe
 );
 
 export default router;
+

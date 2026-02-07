@@ -153,9 +153,6 @@ messageSchema.index({ conversationId: 1, createdAt: 1 });
 messageSchema.index({ receiverId: 1, isRead: 1 });
 messageSchema.index({ senderId: 1, createdAt: -1 });
 
-// Delete filtering
-messageSchema.index({ deletedFor: 1 });
-
 // Media queries
 messageSchema.index({ mediaPublicId: 1 });
 

@@ -2,7 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 
 // 🔐 AUTH
-import authMiddleware from "../middlewares/authMiddleware.js";
+import verifyFirebaseToken from "../middlewares/verifyFirebaseToken.js";
 
 // 📦 Controller
 import { getSellerAds } from "../Controllers/sellerController.js";
@@ -21,7 +21,7 @@ const router = express.Router();
 ===================================================== */
 router.get(
   "/:sellerId/ads",
-  authMiddleware,
+  verifyFirebaseToken,
   (req, res, next) => {
     const { sellerId } = req.params;
 
@@ -36,3 +36,4 @@ router.get(
 );
 
 export default router;
+

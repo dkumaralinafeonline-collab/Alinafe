@@ -244,6 +244,14 @@ geo: {
     accessType: { type: String, default: "" },
 
     /* ===========================
+       🔑 SEARCH TAGS
+    =========================== */
+    tags: {
+      type: [String],
+      default: [],
+    },
+
+    /* ===========================
        📊 ANALYTICS
     =========================== */
     views: {
@@ -313,18 +321,11 @@ adSchema.index({
   description: "text",
   category: "text",
   subcategory: "text",
-/* ===========================
-   🔑 SEARCH TAGS
-=========================== */
-tags: {
-  type: [String],
-  default: [],
-},
+  tags: "text",
 });
 
 // ✅ FILTER INDEXES
 adSchema.index({ city: 1, status: 1 });
-adSchema.index({ price: 1 });
 adSchema.index({ ownerUid: 1, createdAt: -1 });
 
 // ✅ GEO SEARCH

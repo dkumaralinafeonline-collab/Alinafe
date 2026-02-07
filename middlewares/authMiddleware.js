@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   // ❌ No token
@@ -11,21 +11,17 @@ const authMiddleware = (req, res, next) => {
     });
   }
 
+  const token = authHeader.split(" ")[1];
+
+  // JWT-only middleware (admin auth flows).
   try {
-    const token = authHeader.split(" ")[1];
-
-    // ✅ VERIFY TOKEN
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // ✅ IMPORTANT: NO ROLE CHECK HERE
-    // role check will be done by roleMiddleware
-
-    req.user = decoded; // { uid, role, email ... }
-    next();
-  } catch (error) {
+    req.user = decoded;
+    return next();
+  } catch {
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired token.",
+      message: "Unauthorized. Invalid or expired token.",
     });
   }
 };

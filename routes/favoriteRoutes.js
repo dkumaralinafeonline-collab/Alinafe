@@ -1,7 +1,7 @@
 import express from "express";
 
 // 🔐 AUTH MIDDLEWARE
-import authMiddleware from "../middlewares/authMiddleware.js";
+import verifyFirebaseToken from "../middlewares/verifyFirebaseToken.js";
 
 // ❤️ FAVORITES CONTROLLER
 import {
@@ -18,7 +18,7 @@ const router = express.Router();
 ===================================================== */
 router.put(
   "/toggle",
-  authMiddleware,
+  verifyFirebaseToken,
   toggleFavorite
 );
 
@@ -30,8 +30,9 @@ router.put(
 ===================================================== */
 router.get(
   "/:userId",
-  authMiddleware,
+  verifyFirebaseToken,
   getFavorites
 );
 
 export default router;
+

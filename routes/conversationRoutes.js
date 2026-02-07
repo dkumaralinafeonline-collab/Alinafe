@@ -1,7 +1,7 @@
 import express from "express";
 
 // 🔐 AUTH
-import authMiddleware from "../middlewares/authMiddleware.js";
+import verifyFirebaseToken from "../middlewares/verifyFirebaseToken.js";
 
 import {
   getUserConversations,
@@ -17,26 +17,26 @@ const router = express.Router();
    🟢 START / GET CONVERSATION
    (USER MUST BE LOGGED IN)
 ===================================================== */
-router.post("/start", authMiddleware, startConversation);
+router.post("/start", verifyFirebaseToken, startConversation);
 
 /* =====================================================
    🟢 DASHBOARD CHAT PREVIEW
    GET /api/conversations/preview/:uid
 ===================================================== */
-router.get("/preview/:uid", authMiddleware, getConversationPreview);
+router.get("/preview/:uid", verifyFirebaseToken, getConversationPreview);
 
 /* =====================================================
    🟢 FULL CONVERSATION LIST
    GET /api/conversations/:uid
 ===================================================== */
-router.get("/:uid", authMiddleware, getUserConversations);
+router.get("/:uid", verifyFirebaseToken, getUserConversations);
 
 /* =====================================================
    🟢 MARK CONVERSATION AS READ
 ===================================================== */
 router.put(
   "/:conversationId/mark-read/:userId",
-  authMiddleware,
+  verifyFirebaseToken,
   markConversationRead
 );
 
@@ -45,8 +45,9 @@ router.put(
 ===================================================== */
 router.delete(
   "/delete/:conversationId",
-  authMiddleware,
+  verifyFirebaseToken,
   deleteConversationHard
 );
 
 export default router;
+

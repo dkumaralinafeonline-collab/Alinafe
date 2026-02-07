@@ -158,20 +158,6 @@ export const getAds = async (req, res) => {
     }
 
     // -----------------------------
-    // QUERY FILTER (car, bike, service etc)
-    // -----------------------------
-    const tokens = tokenizeQuery(q);
-    if (tokens.length) {
-      const tokenOr = tokens.join("|");
-      filters.$or = [
-        { $and: buildTokenAnd(tokens, "title") },
-        { $and: buildTokenAnd(tokens, "description") },
-        { category: { $regex: `\\b(${tokenOr})\\b`, $options: "i" } },
-        { subcategory: { $regex: `\\b(${tokenOr})\\b`, $options: "i" } },
-      ];
-    }
-
-    // -----------------------------
     // SORTING
     // -----------------------------
     const sortMap = {
@@ -182,19 +168,63 @@ export const getAds = async (req, res) => {
     };
     const sortBy = sortMap[String(sort).toLowerCase()] || sortMap.newest;
 
+    const projection =
+      "title description price images category subcategory city location featured createdAt views";
+
     // -----------------------------
-    // FETCH ADS
+    // QUERY FILTER (strict first)
     // -----------------------------
-    const [ads, total] = await Promise.all([
-      Ad.find(filters)
-        .select(
-          "title price images category subcategory city location featured createdAt views"
-        )
-        .sort(sortBy)
-        .skip(skip)
-        .limit(limit),
-      Ad.countDocuments(filters),
-    ]);
+    const tokens = tokenizeQuery(q);
+    let ads = [];
+    let total = 0;
+
+    if (tokens.length) {
+      // For each token, require at least one core-field match.
+      const strictAnd = tokens.map((t) => ({
+        $or: [
+          { title: { $regex: `\\b${t}\\b`, $options: "i" } },
+          { subcategory: { $regex: `\\b${t}\\b`, $options: "i" } },
+          { brand: { $regex: `\\b${t}\\b`, $options: "i" } },
+          { model: { $regex: `\\b${t}\\b`, $options: "i" } },
+          { tags: { $elemMatch: { $regex: `\\b${t}\\b`, $options: "i" } } },
+        ],
+      }));
+
+      const strictFilters = {
+        ...filters,
+        $and: strictAnd,
+      };
+
+      [ads, total] = await Promise.all([
+        Ad.find(strictFilters).select(projection).sort(sortBy).skip(skip).limit(limit),
+        Ad.countDocuments(strictFilters),
+      ]);
+
+      // Fallback: broader match only when strict returns empty.
+      if (total === 0) {
+        const tokenOr = tokens.join("|");
+        const broadFilters = {
+          ...filters,
+          $or: [
+            { title: { $regex: tokenOr, $options: "i" } },
+            { subcategory: { $regex: tokenOr, $options: "i" } },
+            { brand: { $regex: tokenOr, $options: "i" } },
+            { model: { $regex: tokenOr, $options: "i" } },
+            { tags: { $elemMatch: { $regex: tokenOr, $options: "i" } } },
+          ],
+        };
+
+        [ads, total] = await Promise.all([
+          Ad.find(broadFilters).select(projection).sort(sortBy).skip(skip).limit(limit),
+          Ad.countDocuments(broadFilters),
+        ]);
+      }
+    } else {
+      [ads, total] = await Promise.all([
+        Ad.find(filters).select(projection).sort(sortBy).skip(skip).limit(limit),
+        Ad.countDocuments(filters),
+      ]);
+    }
 
     return res.status(200).json({
       success: true,

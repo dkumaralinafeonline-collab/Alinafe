@@ -20,11 +20,11 @@ export const createAd = async (req, res) => {
   try {
     // 1️⃣ Clone body (DO NOT destructure)
     const body = { ...req.body };
+    const firebaseUser = req.firebaseUser || {};
 
-    console.log("REQ BODY 🔥", body);
 
     // 2️⃣ Required fields check
-    if (!body.ownerUid || !body.title || !body.description || !body.category) {
+    if (!firebaseUser.uid || !body.title || !body.description || !body.category) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields",
@@ -37,16 +37,18 @@ export const createAd = async (req, res) => {
         delete body[key];
       }
     });
-
-    // 4️⃣ Fetch owner details if missing
-    if (!body.ownerName || !body.ownerEmail || !body.ownerPhone) {
-      const user = await User.findOne({ uid: body.ownerUid });
-      if (user) {
-        body.ownerName = body.ownerName || user.name;
-        body.ownerEmail = body.ownerEmail || user.email;
-        body.ownerPhone = body.ownerPhone || user.phone;
-      }
-    }
+    // 4) Owner identity comes from verified token/DB only (ignore spoofed body identity)
+    body.ownerUid = firebaseUser.uid;
+    const ownerUser = await User.findOne({ uid: firebaseUser.uid }).select(
+      "name email phone"
+    );
+    body.ownerEmail = ownerUser?.email || firebaseUser.email || "";
+    body.ownerName =
+      ownerUser?.name ||
+      firebaseUser.name ||
+      body.ownerEmail?.split("@")[0] ||
+      "User";
+    body.ownerPhone = ownerUser?.phone || "";
 
     // 5️⃣ Boolean normalization
     body.negotiable =
@@ -165,7 +167,7 @@ export const createAd = async (req, res) => {
     }
 
     if (Object.keys(updateFields).length > 0) {
-      await User.updateOne({ uid: body.ownerUid }, { $set: updateFields });
+      await User.updateOne({ uid: firebaseUser.uid }, { $set: updateFields });
     }
 
     // 🔟 Final response
@@ -179,7 +181,6 @@ export const createAd = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error while creating ad",
-      error: error.message,
     });
   }
 };
@@ -191,11 +192,22 @@ export const createAd = async (req, res) => {
 export const getUserAds = async (req, res) => {
   try {
     const { uid } = req.params;
+    const requesterUid = req.user?.uid;
+    const requesterRole = req.user?.role;
+
+    if (!requesterUid) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (requesterUid !== uid && requesterRole !== "admin") {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     const ads = await Ad.find({ ownerUid: uid }).sort({ createdAt: -1 });
     res.status(200).json(ads);
   } catch (error) {
     console.error("Error fetching user ads:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -223,9 +235,9 @@ export const getPromoAds = async (req, res) => {
     const ads = await Ad.find(filters)
       .sort({ createdAt: -1 }) // latest first
       .limit(Number(limit))
-     .select(
-  "_id title price images condition city location ownerName"
-);
+      .select(
+        "_id title price images condition city location ownerName"
+      );
 
 
     res.status(200).json({
@@ -411,7 +423,7 @@ export const updateAd = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating ad:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -435,7 +447,7 @@ export const deleteAd = async (req, res) => {
     res.status(200).json({ message: "Ad deleted successfully" });
   } catch (error) {
     console.error("Error deleting ad:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -453,7 +465,7 @@ export const markAsSold = async (req, res) => {
     res.status(200).json({ message: "Ad marked as sold", ad });
   } catch (error) {
     console.error("Error marking ad as sold:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -490,7 +502,6 @@ export const incrementView = async (req, res) => {
     console.error("❌ Error updating view count:", error);
     res.status(500).json({
       message: "Server error while updating view count",
-      error: error.message,
     });
   }
 };
@@ -516,7 +527,7 @@ export const changeAdStatus = async (req, res) => {
     res.status(200).json({ message: `Ad status changed to ${status}`, ad });
   } catch (error) {
     console.error("Error changing ad status:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -538,7 +549,7 @@ export const getAdById = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching ad:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -563,7 +574,7 @@ export const updateFavoriteCount = async (req, res) => {
       favouritesCount: ad.favouritesCount,
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -594,3 +605,9 @@ export const searchAds = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+
+
+
+

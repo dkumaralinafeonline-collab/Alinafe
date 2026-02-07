@@ -8,7 +8,6 @@ const ConversationSchema = new mongoose.Schema(
     participants: {
       type: [String], // [senderId, receiverId] (Firebase UID)
       required: true,
-      index: true,
     },
 
     /* =====================================

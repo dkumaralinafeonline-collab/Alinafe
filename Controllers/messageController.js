@@ -136,7 +136,6 @@ export const saveMessage = async (req, res) => {
     const authUid = requireAuthUid(req);
 
     const {
-      senderId,
       receiverId,
       message,
       mediaUrl,
@@ -146,19 +145,24 @@ export const saveMessage = async (req, res) => {
       productImage,
       clientTempId,
     } = req.body;
+    const senderId = authUid;
 
     // ✅ strict auth
-    if (authUid !== senderId) {
-      return res.status(403).json({ error: "Access denied" });
+    if (!receiverId) {
+      return res.status(400).json({ error: "receiverId is required" });
+    }
+
+    if (receiverId === senderId) {
+      return res.status(400).json({ error: "Cannot send message to yourself" });
     }
 
     // ✅ rate guard
     const now = Date.now();
-    const last = lastSendAt.get(senderId) || 0;
+    const last = lastSendAt.get(authUid) || 0;
     if (now - last < RATE_WINDOW_MS) {
       return res.status(429).json({ error: "Too many requests" });
     }
-    lastSendAt.set(senderId, now);
+    lastSendAt.set(authUid, now);
 
     // ✅ validate type
     const msgType = (type || "text").toLowerCase();
@@ -235,7 +239,6 @@ export const saveMessage = async (req, res) => {
     // ✅ SAVE MESSAGE (delivery/read defaults)
     const baseDoc = {
       conversationId: convo._id,
-      senderId,
       receiverId,
       message: msgType === "text" ? text : (text || ""),
       mediaUrl: hasMedia ? mediaUrl : "",

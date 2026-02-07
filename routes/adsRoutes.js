@@ -16,7 +16,7 @@ import {
 } from "../Controllers/adController.js";
 
 // 🔐 AUTH MIDDLEWARE
-import authMiddleware from "../middlewares/authMiddleware.js";
+import verifyFirebaseToken from "../middlewares/verifyFirebaseToken.js";
 
 // 🔐 OWNER / ADMIN PERMISSION MIDDLEWARE
 import adPermissionMiddleware from "../middlewares/adPermissionMiddleware.js";
@@ -93,7 +93,7 @@ const upload = multer({
 ================================================= */
 router.post(
   "/create",
-  authMiddleware,
+  verifyFirebaseToken,
   upload.fields([
     { name: "images", maxCount: 5 },
     { name: "video", maxCount: 1 },
@@ -105,7 +105,7 @@ router.post(
 /* =================================================
    👤 GET LOGGED-IN USER ADS
 ================================================= */
-router.get("/user/:uid", authMiddleware, getUserAds);
+router.get("/user/:uid", verifyFirebaseToken, getUserAds);
 
 /* =================================================
    🔎 SEARCH ADS (PUBLIC)
@@ -134,7 +134,7 @@ router.put("/:id/view", incrementView);
 ================================================= */
 router.put(
   "/:id/favorite",
-  authMiddleware,
+  verifyFirebaseToken,
   updateFavoriteCount
 );
 
@@ -143,7 +143,7 @@ router.put(
 ================================================= */
 router.put(
   "/:id/sold",
-  authMiddleware,
+  verifyFirebaseToken,
   adPermissionMiddleware,
   markAsSold
 );
@@ -153,7 +153,7 @@ router.put(
 ================================================= */
 router.put(
   "/:id",
-  authMiddleware,
+  verifyFirebaseToken,
   adPermissionMiddleware,
   upload.fields([
     { name: "images", maxCount: 5 },
@@ -168,7 +168,7 @@ router.put(
 ================================================= */
 router.delete(
   "/:id",
-  authMiddleware,
+  verifyFirebaseToken,
   adPermissionMiddleware,
   deleteAd
 );
@@ -185,3 +185,4 @@ router.get("/:id", getAdById);
 ============================= */
 
 export default router;
+

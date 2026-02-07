@@ -2,6 +2,7 @@ import express from "express";
 import {
   globalSearch,
   getTrendingSearches,
+  getAds,
 } from "../Controllers/searchController.js";
 
 import {
@@ -20,6 +21,7 @@ const router = express.Router();
  * - trending logs
  */
 router.get("/", searchLimiter, globalSearch);
+router.get("/ads", searchLimiter, getAds);
 
 /**
  * 🔥 TRENDING SEARCHES

@@ -3,15 +3,28 @@ import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
 
+const getEffectiveUid = (req, requestedUid) => {
+  const tokenUid = req.user?.uid;
+  const role = req.user?.role || "user";
+  if (!tokenUid) return null;
+  if (role === "admin" && requestedUid) return requestedUid;
+  return tokenUid;
+};
+
 /* =====================================================
    🟢 GET /api/conversations/:uid
    → Fetch all chats for Sidebar (FULL DATA)
 ===================================================== */
 export const getUserConversations = async (req, res) => {
-  const { uid } = req.params;
+  const { uid: requestedUid } = req.params;
+  const uid = getEffectiveUid(req, requestedUid);
 
   // 🔐 OWNERSHIP CHECK
-  if (req.user.uid !== uid) {
+  if (!uid) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if ((req.user?.role || "user") !== "admin" && req.user.uid !== requestedUid) {
     return res.status(403).json({ message: "Access denied" });
   }
 
@@ -93,9 +106,14 @@ export const getUserConversations = async (req, res) => {
    → Lightweight preview (Dashboard)
 ===================================================== */
 export const getConversationPreview = async (req, res) => {
-  const { uid } = req.params;
+  const { uid: requestedUid } = req.params;
+  const uid = getEffectiveUid(req, requestedUid);
 
-  if (req.user.uid !== uid) {
+  if (!uid) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  if ((req.user?.role || "user") !== "admin" && req.user.uid !== requestedUid) {
     return res.status(403).json({ message: "Access denied" });
   }
 
@@ -200,10 +218,19 @@ export const markConversationRead = async (req, res) => {
 ===================================================== */
 export const startConversation = async (req, res) => {
   try {
-    const { senderId, receiverId, adId, adTitle, adImage } = req.body;
+    const { receiverId, adId, adTitle, adImage } = req.body;
+    const senderId = req.user?.uid;
 
-    if (req.user.uid !== senderId) {
-      return res.status(403).json({ message: "Access denied" });
+    if (!senderId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!receiverId) {
+      return res.status(400).json({ message: "receiverId is required" });
+    }
+
+    if (senderId === receiverId) {
+      return res.status(400).json({ message: "Cannot start chat with yourself" });
     }
 
     let convo = await Conversation.findOne({

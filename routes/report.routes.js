@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
-import authMiddleware from "../middlewares/authMiddleware.js";
+import verifyFirebaseToken from "../middlewares/verifyFirebaseToken.js";
 import cloudinary from "../config/cloudinary.js";
 
 import {
@@ -21,7 +21,8 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage });
 
-router.post("/", authMiddleware, upload.single("file"), createReport);
-router.get("/user/:userId", authMiddleware, getUserReports);
+router.post("/", verifyFirebaseToken, upload.single("file"), createReport);
+router.get("/user/:userId", verifyFirebaseToken, getUserReports);
 
 export default router;
+
