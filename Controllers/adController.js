@@ -264,6 +264,7 @@ export const getAllAds = async (req, res) => {
       q = "",
       location = "",
       category,
+      condition,
       page = 1,
       limit = 20,
     } = req.query;
@@ -281,6 +282,10 @@ export const getAllAds = async (req, res) => {
 
     if (category) {
       filters.category = category;
+    }
+
+    if (condition && ["New", "Used"].includes(condition)) {
+      filters.condition = condition;
     }
 
     if (q) {
